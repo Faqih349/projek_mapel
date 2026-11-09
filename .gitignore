@@ -1,0 +1,3 @@
+.chrome_profile_check/
+.chrome_quran_check/
+-remote --heads origin
