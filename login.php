@@ -44,7 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'initials' => (string)($account['initials'] ?? ''),
                 'class' => (string)($account['class_name'] ?? ''),
                 'nisn' => (string)($account['nisn'] ?? ''),
-                'nisn' => (string)($account['nisn'] ?? ''),
                 'role' => (string)($account['role'] ?? 'student'),
             ];
             header('Location: index.php');

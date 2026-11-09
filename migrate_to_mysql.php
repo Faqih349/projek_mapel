@@ -41,24 +41,27 @@ try {
         ]);
     }
 
-    $saveMaterial = $db->prepare('INSERT INTO materials (position,title,description,course_title,course_id,body,file_name,file_original_name,file_mime,file_size) VALUES (:position,:title,:description,:course_title,:course_id,:body,:file_name,:file_original_name,:file_mime,:file_size) ON DUPLICATE KEY UPDATE title=VALUES(title),description=VALUES(description),course_title=VALUES(course_title),course_id=VALUES(course_id),body=VALUES(body),file_name=VALUES(file_name),file_original_name=VALUES(file_original_name),file_mime=VALUES(file_mime),file_size=VALUES(file_size)');
+    $saveMaterial = $db->prepare('INSERT INTO materials (position,class_group_id,title,description,course_title,course_id,body,file_name,file_original_name,file_mime,file_size) VALUES (:position,:class_group_id,:title,:description,:course_title,:course_id,:body,:file_name,:file_original_name,:file_mime,:file_size) ON DUPLICATE KEY UPDATE class_group_id=COALESCE(VALUES(class_group_id),class_group_id),title=VALUES(title),description=VALUES(description),course_title=VALUES(course_title),course_id=VALUES(course_id),body=VALUES(body),file_name=VALUES(file_name),file_original_name=VALUES(file_original_name),file_mime=VALUES(file_mime),file_size=VALUES(file_size)');
     foreach (array_values($materials) as $position=>$material) {
         if (!is_array($material)) continue;
         $asset = is_array($material[5] ?? null) ? $material[5] : [];
         $saveMaterial->execute([
-            'position'=>$position, 'title'=>(string)($material[0] ?? ''), 'description'=>(string)($material[1] ?? ''),
+            'position'=>$position, 'class_group_id'=>isset($material[6]) && filter_var($material[6], FILTER_VALIDATE_INT) !== false ? (int)$material[6] : null,
+            'title'=>(string)($material[0] ?? ''), 'description'=>(string)($material[1] ?? ''),
             'course_title'=>(string)($material[2] ?? ''), 'course_id'=>(string)($material[3] ?? ''), 'body'=>(string)($material[4] ?? ''),
             'file_name'=>$asset['file'] ?? null, 'file_original_name'=>$asset['name'] ?? null, 'file_mime'=>$asset['mime'] ?? null, 'file_size'=>$asset['size'] ?? null,
         ]);
     }
 
-    $saveAssignment = $db->prepare('INSERT INTO assignments (task_id,course_id,course_title,type,icon,title,due,description,prompt,questions,file_name,file_original_name,file_mime,file_size) VALUES (:task_id,:course_id,:course_title,:type,:icon,:title,:due,:description,:prompt,:questions,:file_name,:file_original_name,:file_mime,:file_size) ON DUPLICATE KEY UPDATE course_id=VALUES(course_id),course_title=VALUES(course_title),type=VALUES(type),icon=VALUES(icon),title=VALUES(title),due=VALUES(due),description=VALUES(description),prompt=VALUES(prompt),questions=VALUES(questions),file_name=VALUES(file_name),file_original_name=VALUES(file_original_name),file_mime=VALUES(file_mime),file_size=VALUES(file_size)');
+    $saveAssignment = $db->prepare('INSERT INTO assignments (task_id,course_id,class_group_id,course_title,type,exam_mode,icon,title,due,description,prompt,questions,file_name,file_original_name,file_mime,file_size) VALUES (:task_id,:course_id,:class_group_id,:course_title,:type,:exam_mode,:icon,:title,:due,:description,:prompt,:questions,:file_name,:file_original_name,:file_mime,:file_size) ON DUPLICATE KEY UPDATE course_id=VALUES(course_id),class_group_id=COALESCE(VALUES(class_group_id),class_group_id),course_title=VALUES(course_title),type=VALUES(type),exam_mode=VALUES(exam_mode),icon=VALUES(icon),title=VALUES(title),due=VALUES(due),description=VALUES(description),prompt=VALUES(prompt),questions=VALUES(questions),file_name=VALUES(file_name),file_original_name=VALUES(file_original_name),file_mime=VALUES(file_mime),file_size=VALUES(file_size)');
     foreach ($assignments as $assignment) {
         if (!is_array($assignment) || empty($assignment['id'])) continue;
         $asset = is_array($assignment['attachment'] ?? null) ? $assignment['attachment'] : [];
         $saveAssignment->execute([
             'task_id'=>(string)$assignment['id'], 'course_id'=>(string)($assignment['courseId'] ?? ''),
+            'class_group_id'=>isset($assignment['classGroupId']) && filter_var($assignment['classGroupId'], FILTER_VALIDATE_INT) !== false ? (int)$assignment['classGroupId'] : null,
             'course_title'=>(string)($assignment['courseTitle'] ?? ''), 'type'=>($assignment['type'] ?? '') === 'quiz' ? 'quiz' : 'essay',
+            'exam_mode'=>($assignment['examMode'] ?? false) ? 1 : 0,
             'icon'=>(string)($assignment['icon'] ?? ''), 'title'=>(string)($assignment['title'] ?? ''), 'due'=>(string)($assignment['due'] ?? ''),
             'description'=>(string)($assignment['description'] ?? ''), 'prompt'=>(string)($assignment['prompt'] ?? ''),
             'questions'=>json_encode($assignment['questions'] ?? [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),

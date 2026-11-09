@@ -21,6 +21,11 @@ $db = mutqinDb();
 $task = $db->prepare('SELECT task_id FROM assignments WHERE task_id=:task_id LIMIT 1');
 $task->execute(['task_id'=>$taskId]);
 if (!$task->fetchColumn()) submissionFileError(404, 'Tugas tidak ditemukan.');
+$taskOwner = $db->prepare('SELECT 1 FROM assignments a JOIN class_groups cg ON cg.id=a.class_group_id JOIN users teacher ON teacher.id=cg.teacher_id WHERE a.task_id=:task_id AND teacher.username=:username AND teacher.role=\'teacher\' LIMIT 1');
+if (($user['role'] ?? '') === 'teacher') {
+    $taskOwner->execute(['task_id'=>$taskId, 'username'=>(string)$user['username']]);
+    if (!$taskOwner->fetchColumn()) submissionFileError(403, 'Kamu tidak memiliki akses ke tugas ini.');
+}
 $accounts = $db->prepare('SELECT username FROM users WHERE username=:username AND role=\'student\' LIMIT 1');
 $accounts->execute(['username'=>$requestedUsername]);
 if (!$accounts->fetchColumn()) submissionFileError(404, 'Siswa tidak ditemukan.');
