@@ -1,0 +1,57 @@
+[
+    {
+        "id": "kuis-adab",
+        "courseId": "akhlak",
+        "courseTitle": "Akidah Akhlak",
+        "type": "quiz",
+        "icon": "☑",
+        "title": "Kuis Adab Pergaulan Islami",
+        "due": "15 Okt 2026",
+        "description": "Kuis singkat tentang adab bergaul dengan teman.",
+        "prompt": "Pilih satu jawaban yang paling tepat untuk setiap pertanyaan.",
+        "questions": [
+            {
+                "question": "Bagaimana sikap yang baik ketika teman menyampaikan pendapat berbeda?",
+                "options": [
+                    "Mendengarkan dan menanggapi dengan santun",
+                    "Memotong pembicaraan agar cepat selesai",
+                    "Mengejek pendapatnya di depan teman lain",
+                    "apa ada dah"
+                ],
+                "answer": 0
+            },
+            {
+                "question": "Contoh menjaga lisan dalam pergaulan adalah …",
+                "options": [
+                    "Menyebarkan cerita pribadi teman",
+                    "Berkata jujur tanpa merendahkan",
+                    "Membalas ejekan dengan ejekan",
+                    "apa ada deh"
+                ],
+                "answer": 1
+            },
+            {
+                "question": "Jika terjadi perselisihan, sebaiknya kita …",
+                "options": [
+                    "Mencari jalan damai dan saling menjelaskan",
+                    "Mengajak teman lain memihak",
+                    "Menghindari teman selamanya",
+                    "apa aja duh"
+                ],
+                "answer": 0
+            }
+        ]
+    },
+    {
+        "id": "rangkuman-nusantara",
+        "courseId": "sejarah",
+        "courseTitle": "Sejarah Kebudayaan Islam",
+        "type": "essay",
+        "icon": "▧",
+        "title": "Rangkuman Islam di Nusantara",
+        "due": "18 Okt 2026",
+        "description": "Rangkuman cara Islam berkembang di Nusantara.",
+        "prompt": "Tuliskan rangkuman singkat tentang dua jalur penyebaran Islam di Nusantara dan satu contoh sikap dakwah yang bijaksana.",
+        "questions": []
+    }
+]

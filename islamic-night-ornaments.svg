@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="230" viewBox="0 0 460 230" fill="none">
+  <g opacity=".78" stroke="#4b8b65" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="m25 49 5-10 5 10 10 5-10 5-5 10-5-10-10-5 10-5Z" fill="#d6b95b" stroke="none"/>
+    <circle cx="136" cy="42" r="2.5" fill="#d6b95b" stroke="none"/><circle cx="240" cy="34" r="2" fill="#d6b95b" stroke="none"/>
+    <path d="M341 65c0-11 9-20 20-20 5 0 9 2 13 5-3-1-5-2-8-2-10 0-18 8-18 18 0 4 1 8 4 11-7-3-11-7-11-12Z" fill="#d6b95b" stroke="none"/>
+    <!-- Makkah: a little Kaaba beneath a starry sky -->
+    <path d="M35 143 72 127l37 16v43l-37 17-37-17v-43Z" fill="#244d3d"/>
+    <path d="m35 143 37 16v44l-37-17v-43Z" fill="#173c31"/>
+    <path d="m72 159 37-16v43l-37 17v-44Z" fill="#32634a"/>
+    <path d="m35 143 37-16 37 16-37 16-37-16Z" fill="#39734f"/>
+    <path d="m36 149 36 15 36-15v8l-36 16-36-16v-8Z" fill="#d5b45c" stroke="none"/>
+    <path d="M65 180h14v22H65z" fill="#d8bd72" stroke="none"/>
+    <path d="M19 205h104" stroke="#82a987"/>
+    <path d="M13 206c9-8 17-8 26 0m77 0c8-7 15-7 23 0" stroke="#a7caa2"/>
+    <!-- Madinah: green dome and friendly little minarets -->
+    <path d="M180 148h103v53H180z" fill="#dcebd8"/>
+    <path d="M195 148c0-18 16-31 36-31s36 13 36 31h-72Z" fill="#5d9a70"/>
+    <path d="M228 116v-10m-4 3 4-6 4 6" stroke="#d6b95b"/>
+    <path d="M188 148v-39h10v39m67 0v-39h10v39" fill="#edf3df"/>
+    <path d="M185 109h16l-8-12-8 12Zm67 0h16l-8-12-8 12Z" fill="#d6b95b" stroke="none"/>
+    <path d="M218 177c0-8 6-14 14-14s14 6 14 14v24h-28v-24Z" fill="#8cb58b"/>
+    <path d="M171 205h121" stroke="#82a987"/>
+    <path d="M169 206c9-8 17-8 26 0m91 0c8-7 15-7 23 0" stroke="#a7caa2"/>
+    <path d="M326 176h65v29h-65z" fill="#dcebd8"/>
+    <path d="M335 176c0-13 10-22 23-22s23 9 23 22h-46Z" fill="#5d9a70"/>
+    <path d="M357 153v-7m-3 2 3-5 3 5" stroke="#d6b95b"/>
+    <path d="M320 205h77" stroke="#82a987"/>
+    <path d="M23 111h19m272-25h17m83 54h15" stroke="#a7caa2"/>
+  </g>
+</svg>

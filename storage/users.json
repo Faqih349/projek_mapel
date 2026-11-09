@@ -1,0 +1,20 @@
+[
+    {
+        "username": "aulia",
+        "name": "Aulia",
+        "email": "aulia@mutqinspace.sch.id",
+        "initials": "AR",
+        "class": "XI",
+        "role": "student",
+        "password_hash": "$2y$10$zLEkikiFkMlStcK3hUd1pus29gycYj2lK3tgAUKBUoE4BLLNpAazy"
+    },
+    {
+        "username": "guru",
+        "name": "Guru Pendidikan Agama",
+        "email": "guru@mutqinspace.sch.id",
+        "initials": "GP",
+        "class": "",
+        "role": "teacher",
+        "password_hash": "$2y$10$BK.8inyFhWpNaDoZC5CGQOMrRlIHPvdTRomXHdXRKI8KX.AAVqVnC"
+    }
+]

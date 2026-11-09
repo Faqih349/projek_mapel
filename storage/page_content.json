@@ -1,0 +1,36 @@
+{
+    "beranda": [],
+    "kelas": [],
+    "materi": [],
+    "tugas": [],
+    "informasi": [
+        {
+            "id": "info_schedule",
+            "category": "PENGUMUMAN KELAS",
+            "title": "Jadwal pengumpulan tugas bulan ini",
+            "body": "Periksa tenggat refleksi toleransi, kuis Akidah Akhlak, dan rangkuman Sejarah Kebudayaan Islam di menu Tugas & kuis."
+        },
+        {
+            "id": "info_material",
+            "category": "MUTQINSPACE",
+            "title": "Materi baru tersedia di kelas",
+            "body": "Guru dapat menambahkan materi melalui menu Materi belajar. Murid bisa membuka materi dari daftar kelas atau perpustakaan digital."
+        },
+        {
+            "id": "info_reminder",
+            "category": "PENGINGAT",
+            "title": "Belajar dengan santun dan teratur",
+            "body": "Selesaikan materi secara bertahap, kumpulkan tugas sebelum tenggat, dan jaga adab saat berinteraksi di lingkungan belajar."
+        }
+    ],
+    "leaderboard": [],
+    "bantuan": [],
+    "class_1_informasi": [
+        {
+            "id": "content_b933661bce1c2a76",
+            "category": "PENGUMUMAN KELAS",
+            "title": "Jadwal pengumpulan tugas bulan ini",
+            "body": "asdsda"
+        }
+    ]
+}
