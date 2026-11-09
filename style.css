@@ -1109,3 +1109,4 @@ select.editor-input { height: 42px; }
 .exam-mode-notice p { margin:5px 0 12px; color:#75663c; font-size:12px; line-height:1.6; }
 .exam-mode-notice .outline-button { border-color:#e6dca7; background:#fff; color:#654f19; }
 .quiz-question:disabled { opacity:.86; }
+.information-category { display:none !important; }

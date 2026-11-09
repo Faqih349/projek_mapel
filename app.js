@@ -1,4 +1,4 @@
-const {courses,tasks,lessons,student,csrfToken,completedLessons,leaderboard,pageContents:initialPageContents,classGroups:initialClassGroups,libraryItems:initialLibraryItems}=window.LMS_DATA;
+const {courses,tasks,lessons,student,csrfToken,completedLessons,leaderboard,studentDirectory=[],pageContents:initialPageContents,classGroups:initialClassGroups,libraryItems:initialLibraryItems}=window.LMS_DATA;
 let libraryItems=Array.isArray(initialLibraryItems)?initialLibraryItems:[];let pageContents=initialPageContents&&typeof initialPageContents==='object'?initialPageContents:{};let classGroups=Array.isArray(initialClassGroups)?initialClassGroups:[];let activeClassGroup=null;let activeClassTab="materi";
 const isTeacher=student.role==='teacher';
 const page=document.getElementById('pageContent');const toast=document.getElementById('toast');let timer;let currentPage='beranda';let activeExamTaskId=null;let examTabWasHidden=false;
@@ -80,3 +80,95 @@ document.addEventListener('click',async e=>{const add=e.target.closest('#addClas
 
 
 document.addEventListener('click',e=>{const back=e.target.closest('[data-back-submissions]');if(back){openTaskSubmissions(back.dataset.backSubmissions);return}const answer=e.target.closest('[data-view-answer]');if(answer){openSubmissionAnswer(answer.dataset.viewAnswer,answer.dataset.studentUsername);return}const button=e.target.closest('[data-view-submissions]');if(button)openTaskSubmissions(button.dataset.viewSubmissions)});
+
+// Materi selalu dimiliki satu kelas. Kelas baru tidak mewarisi materi kelas lain.
+const previousShowClassGroup=showClassGroup;
+showClassGroup=function(groupId,tab='materi'){
+  previousShowClassGroup(groupId,tab);
+  if(tab==='materi') document.querySelectorAll('.lesson[data-course]').forEach(row=>{const index=Number(row.querySelector('[data-lesson]')?.dataset.lesson);if(Number(lessons[index]?.[6])!==Number(groupId))row.remove()});
+};
+const previousOpenLessonEditor=openLessonEditor;
+openLessonEditor=function(idx=null){
+  previousOpenLessonEditor(idx);
+  const item=idx===null?null:lessons[idx];
+  const selected=Number(item?.[6]||activeClassGroup?.id||0);
+  const anchor=document.getElementById('editCourse');
+  if(!anchor)return;
+  anchor.insertAdjacentHTML('afterend',`<label class="editor-label" for="editClass">Kelas penerima</label><select class="editor-input" id="editClass" required>${classGroups.map(group=>`<option value="${group.id}" ${Number(group.id)===selected?'selected':''}>${escapeHtml(group.className)}</option>`).join('')}</select>`);
+  if(activeClassGroup){const label=document.querySelector('label[for="editClass"]');const select=document.getElementById('editClass');if(select)select.value=String(activeClassGroup.id);if(label)label.hidden=true;if(select){select.hidden=true;select.disabled=false}}
+};
+document.addEventListener('click',async e=>{
+  const save=e.target.closest('#saveLesson');
+  if(!save)return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  const classGroupId=Number(document.getElementById('editClass')?.value||0);
+  if(!classGroupId){notify('Pilih kelas penerima materi terlebih dahulu.');return}
+  save.disabled=true;save.textContent='Menyimpan…';
+  try{
+    const formData=new FormData();
+    [['csrfToken',csrfToken],['id',save.dataset.id===''?'':save.dataset.id],['title',document.getElementById('editTitle').value],['description',document.getElementById('editDescription').value],['courseId',document.getElementById('editCourse').value],['classGroupId',String(classGroupId)],['body',document.getElementById('editBody').value]].forEach(([key,value])=>formData.append(key,value));
+    const attachment=document.getElementById('editAttachment').files[0];if(attachment)formData.append('attachment',attachment);
+    formData.append('removeAttachment',document.getElementById('removeAttachment')?.checked?'1':'0');
+    const response=await fetch('material_save.php',{method:'POST',body:formData});const result=await response.json();
+    if(!response.ok||!result.ok)throw new Error(result.message||'Materi belum bisa disimpan.');
+    const id=save.dataset.id===''?null:Number(save.dataset.id);if(id===null)lessons.push(result.material);else lessons[id]=result.material;
+    document.getElementById('lessonDialog').close();refreshCurrentPage();notify('Materi berhasil disimpan.');
+  }catch(error){notify(error.message);save.disabled=false;save.textContent='Simpan materi'}
+},{capture:true});
+
+// Vanuit een geopende klas is de doelklas al bekend; verberg de overbodige keuze.
+const previousOpenAssignmentEditor=openAssignmentEditor;
+openAssignmentEditor=function(id=''){
+  previousOpenAssignmentEditor(id);
+  if(!activeClassGroup)return;
+  const select=document.getElementById('assignmentClass');
+  if(!select)return;
+  select.value=String(activeClassGroup.id);
+  select.hidden=true;
+  select.disabled=false;
+  const label=document.querySelector('label[for="assignmentClass"]');
+  if(label)label.hidden=true;
+  const due=document.getElementById('assignmentDue');
+  if(due){due.type='datetime-local';due.step='60';const task=tasks.find(item=>item.id===id);if(task?.due&&/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(task.due))due.value=task.due;}
+};
+
+const previousOpenPageContentEditor=openPageContentEditor;
+openPageContentEditor=function(pageKey,id=''){
+  previousOpenPageContentEditor(pageKey,id);
+  const category=document.getElementById('contentCategory');
+  if(category){category.value='';category.hidden=true;const label=document.querySelector('label[for="contentCategory"]');if(label)label.hidden=true;}
+};
+
+// Tenggat dibuat sebagai tanggal dan jam saat kegiatan dibuat dari halaman umum maupun kelas.
+const previousOpenAssignmentEditorWithDeadline=openAssignmentEditor;
+openAssignmentEditor=function(id=''){
+  previousOpenAssignmentEditorWithDeadline(id);
+  const due=document.getElementById('assignmentDue');
+  if(due){due.type='datetime-local';due.step='60';const task=tasks.find(item=>item.id===id);if(task?.due&&/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(task.due))due.value=task.due;}
+};
+
+const openAssignmentEditorWithDateTime=openAssignmentEditor;
+openAssignmentEditor=function(id=''){
+  openAssignmentEditorWithDateTime(id);
+  const due=document.getElementById('assignmentDue');
+  const task=tasks.find(item=>item.id===id);
+  if(due){due.type='datetime-local';due.step='60';if(task?.due)due.value=String(task.due).replace(' ','T').slice(0,16);}
+};
+
+// Leaderboard pada tab kelas harus selalu memakai anggota kelas aktif, termasuk untuk guru.
+function classScopedLeaderboardPage(){
+  const groups=activeClassGroup?[activeClassGroup]:classGroups;
+  const members=new Set(groups.flatMap(group=>(group.students||[]).map(member=>member.username)));
+  const scopedLeaderboard=leaderboard.filter(entry=>members.has(entry.username));
+  return `<div class="page-head"><div><div class="eyebrow">APRESIASI BELAJAR</div><h1 class="page-title">Leaderboard nilai siswa</h1><p class="page-subtitle">Peringkat dihitung dari nilai kuis dan materi yang telah diselesaikan.</p></div><span class="date-chip">${scopedLeaderboard.length} siswa</span></div><section class="leaderboard-intro panel"><span>🏆</span><div><b>Apresiasi untuk usaha belajar</b><p>Peringkat berdasarkan nilai kuis dan materi yang selesai.</p></div></section><section class="panel leaderboard-panel"><div class="panel-heading"><h2>${isTeacher?'Peringkat siswa':'Peringkat kelas yang kamu ikuti'}</h2><span class="tag">Nilai kuis</span></div><div class="leaderboard-head"><span>Peringkat & siswa</span><span>Materi selesai</span><span>Nilai kuis</span></div>${scopedLeaderboard.map((s,i)=>`<div class="leaderboard-row ${s.username===student.username?'leaderboard-self':''}"><div class="leaderboard-person"><span class="leader-rank ${i<3?'leader-rank-top':''}">${i<1?'0':''}${i+1}</span><span class="top-avatar">${escapeHtml(s.initials)}</span><span class="leader-name"><b>${escapeHtml(s.name)}${s.username===student.username?' (Kamu)':''}</b><small>${s.username===student.username?'Kamu':'Siswa'}</small></span></div><span class="leader-completed">${s.completed}</span><div class="leader-score"><b>${s.score}%</b><small>${s.quizScore}/${s.quizMaximum} benar</small></div></div>`).join('')||'<div class="empty-note">Belum ada data nilai siswa.</div>'}<p class="leaderboard-note">Nilai akan diperbarui setelah siswa mengerjakan kuis.</p></section>`;
+}
+renderers.leaderboard=classScopedLeaderboardPage;
+
+// Daftar kandidat anggota tetap berasal dari semua akun siswa, bukan dari leaderboard.
+openClassStudentEditor=function(groupId){
+  const group=classGroups.find(item=>Number(item.id)===Number(groupId));if(!group||!isTeacher)return;
+  const enrolled=new Set((group.students||[]).map(item=>item.username));
+  const options=(studentDirectory.length?studentDirectory:leaderboard).filter(item=>!enrolled.has(item.username)).map(item=>`<option value="${escapeHtml(item.username)}">${escapeHtml(item.name)} · ${escapeHtml(item.username)}</option>`).join('');
+  document.getElementById('dialogContent').innerHTML=`<div class="eyebrow">KELOLA ANGGOTA KELAS</div><h2>Tambah siswa</h2>${options?`<label class="editor-label" for="classStudentUsername">Pilih siswa</label><select class="editor-input" id="classStudentUsername">${options}</select><div class="editor-actions"><button type="button" class="outline-button" id="cancelClassStudent">Batal</button><button type="button" class="primary-button" id="saveClassStudent" data-class-id="${group.id}">Tambahkan</button></div>`:'<p class="empty-note">Semua akun siswa sudah menjadi anggota kelas ini.</p><div class="editor-actions"><button type="button" class="outline-button" id="cancelClassStudent">Tutup</button></div>'}`;
+  document.getElementById('lessonDialog').showModal();
+};

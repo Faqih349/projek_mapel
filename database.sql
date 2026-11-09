@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS materials (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   position INT UNSIGNED NOT NULL,
+  class_group_id BIGINT UNSIGNED NULL,
   title VARCHAR(150) NOT NULL,
   description VARCHAR(300) NOT NULL,
   course_title VARCHAR(120) NOT NULL,
@@ -38,7 +39,8 @@ CREATE TABLE IF NOT EXISTS materials (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY materials_position_unique (position),
-  KEY materials_course_idx (course_id, position)
+  KEY materials_course_idx (course_id, position),
+  KEY materials_class_group_idx (class_group_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS assignments (

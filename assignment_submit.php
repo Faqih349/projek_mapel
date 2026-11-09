@@ -19,7 +19,7 @@ if (!$data && str_contains(strtolower((string)($_SERVER['CONTENT_TYPE'] ?? '')),
 if (!$data) $data = json_decode((string)file_get_contents('php://input'), true);
 if (!is_array($data) || !hash_equals((string)($_SESSION['csrf_token'] ?? ''), (string)($data['csrfToken'] ?? ''))) reply(403, ['ok'=>false,'message'=>'Sesi berakhir. Muat ulang halaman.']);
 $db = mutqinDb();
-$statement = $db->prepare('SELECT task_id,class_group_id,type,questions FROM assignments WHERE task_id=:id LIMIT 1');
+$statement = $db->prepare('SELECT task_id,class_group_id,type,questions,due FROM assignments WHERE task_id=:id LIMIT 1');
 $statement->execute(['id'=>(string)($data['taskId'] ?? '')]);
 $assignment = $statement->fetch();
 if ($assignment) {
@@ -27,6 +27,8 @@ if ($assignment) {
     $assignment['questions'] = json_decode((string)$assignment['questions'], true) ?: [];
 }
 if (!$assignment) reply(404, ['ok'=>false,'message'=>'Tugas tidak ditemukan.']);
+$dueDate = DateTime::createFromFormat('!Y-m-d\TH:i', (string)($assignment['due'] ?? ''), new DateTimeZone('Asia/Jakarta'));
+if ($dueDate && new DateTime('now', new DateTimeZone('Asia/Jakarta')) > $dueDate) reply(403, ['ok'=>false,'message'=>'Waktu pengerjaan tugas atau kuis sudah berakhir.']);
 if ($assignment['class_group_id'] === null) reply(403, ['ok'=>false,'message'=>'Tugas ini belum ditujukan ke kelas tertentu.']);
 $membership=$db->prepare('SELECT 1 FROM class_memberships cm JOIN users u ON u.id=cm.student_id WHERE cm.class_group_id=:class_id AND u.username=:username AND u.role=\'student\' LIMIT 1');
 $membership->execute(['class_id'=>$assignment['class_group_id'],'username'=>(string)$_SESSION['user']['username']]);

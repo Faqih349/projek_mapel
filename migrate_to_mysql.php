@@ -16,6 +16,8 @@ $assignmentColumns = $db->query('SHOW COLUMNS FROM assignments')->fetchAll(PDO::
 if (!in_array('exam_mode', $assignmentColumns, true)) {
     $db->exec('ALTER TABLE assignments ADD COLUMN exam_mode TINYINT(1) NOT NULL DEFAULT 0 AFTER type');
 }
+$materialColumns = $db->query('SHOW COLUMNS FROM materials')->fetchAll(PDO::FETCH_COLUMN);
+if (!in_array('class_group_id', $materialColumns, true)) $db->exec('ALTER TABLE materials ADD COLUMN class_group_id BIGINT UNSIGNED NULL AFTER position');
 $readJson = static function (string $name): array {
     $path = __DIR__ . '/storage/' . $name;
     $data = is_file($path) ? json_decode((string)file_get_contents($path), true) : [];

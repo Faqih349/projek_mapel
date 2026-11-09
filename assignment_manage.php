@@ -71,7 +71,9 @@ if ($action === 'delete') {
     $type = (string)($payload['type'] ?? 'essay');
     $examMode = $type === 'quiz' && filter_var($payload['examMode'] ?? false, FILTER_VALIDATE_BOOLEAN);
     $length = static fn(string $value): int => function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
-    if ($title === '' || $length($title) > 150 || $description === '' || $length($description) > 300 || $prompt === '' || $length($prompt) > 5000 || $due === '' || $length($due) > 80 || !isset($courses[$courseId]) || !$targetClass || (string)$targetClass['course_id'] !== $courseId || !in_array($type, ['essay','quiz'], true)) {
+    $dueDate = DateTime::createFromFormat('!Y-m-d\TH:i', $due, new DateTimeZone('Asia/Jakarta'));
+    $dueIsValid = $dueDate && $dueDate->format('Y-m-d\TH:i') === $due;
+    if ($title === '' || $length($title) > 150 || $description === '' || $length($description) > 300 || $prompt === '' || $length($prompt) > 5000 || !$dueIsValid || $length($due) > 80 || !isset($courses[$courseId]) || !$targetClass || (string)$targetClass['course_id'] !== $courseId || !in_array($type, ['essay','quiz'], true)) {
         assignmentManageReply(422, ['ok'=>false,'message'=>'Lengkapi judul, tenggat, deskripsi, dan petunjuk tugas.']);
     }
     $questions = [];

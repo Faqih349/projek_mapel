@@ -23,6 +23,8 @@ try { $db = mutqinDb(); } catch (Throwable $exception) {
     error_log('MutqinSpace material database error: ' . $exception->getMessage());
     respond(503, ['ok'=>false, 'message'=>'Database MySQL belum siap. Impor database.sql dan jalankan migrasi data.']);
 }
+$materialColumns = $db->query('SHOW COLUMNS FROM materials')->fetchAll(PDO::FETCH_COLUMN);
+if (!in_array('class_group_id', $materialColumns, true)) $db->exec('ALTER TABLE materials ADD COLUMN class_group_id BIGINT UNSIGNED NULL AFTER position');
 
 $courses = ['quran'=>'Al-Qur’an dan Hadis', 'akhlak'=>'Akidah Akhlak', 'sejarah'=>'Sejarah Kebudayaan Islam', 'fikih'=>'Fikih'];
 $action = (string)($payload['action'] ?? 'save');
@@ -69,8 +71,13 @@ $title = trim((string)($payload['title'] ?? ''));
 $description = trim((string)($payload['description'] ?? ''));
 $body = trim((string)($payload['body'] ?? ''));
 $courseId = (string)($payload['courseId'] ?? '');
+$classGroupId = filter_var($payload['classGroupId'] ?? null, FILTER_VALIDATE_INT);
+$classGroupId = $classGroupId === false ? 0 : (int)$classGroupId;
+$classCheck = $db->prepare("SELECT id,class_name,course_id FROM class_groups WHERE id=:id AND teacher_id=(SELECT id FROM users WHERE username=:username AND role='teacher' LIMIT 1) LIMIT 1");
+$classCheck->execute(['id'=>$classGroupId,'username'=>(string)$_SESSION['user']['username']]);
+$targetClass = $classCheck->fetch();
 $length = static fn(string $value): int => function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
-if ($title === '' || $length($title) > 150 || $description === '' || $length($description) > 300 || $body === '' || $length($body) > 20000 || !isset($courses[$courseId])) {
+if ($title === '' || $length($title) > 150 || $description === '' || $length($description) > 300 || $body === '' || $length($body) > 20000 || !isset($courses[$courseId]) || !$targetClass || (string)$targetClass['course_id'] !== $courseId) {
     respond(422, ['ok'=>false, 'message'=>'Lengkapi semua kolom. Periksa batas panjang judul, ringkasan, dan isi materi.']);
 }
 $isNew = $id === null || $id === '';
@@ -107,14 +114,13 @@ if (is_array($uploaded) && (int)($uploaded['error'] ?? UPLOAD_ERR_NO_FILE) !== U
 if ($isNew) $id = (int)$db->query('SELECT COALESCE(MAX(position),-1)+1 FROM materials')->fetchColumn();
 $assetFields = $asset ? [$asset['file'],$asset['name'],$asset['mime'],$asset['size']] : [null,null,null,null];
 try {
-    $statement = $db->prepare('INSERT INTO materials (position,title,description,course_title,course_id,body,file_name,file_original_name,file_mime,file_size) VALUES (:position,:title,:description,:course_title,:course_id,:body,:file_name,:file_original_name,:file_mime,:file_size) ON DUPLICATE KEY UPDATE title=VALUES(title),description=VALUES(description),course_title=VALUES(course_title),course_id=VALUES(course_id),body=VALUES(body),file_name=VALUES(file_name),file_original_name=VALUES(file_original_name),file_mime=VALUES(file_mime),file_size=VALUES(file_size)');
-    $statement->execute(['position'=>$id,'title'=>$title,'description'=>$description,'course_title'=>$courses[$courseId],'course_id'=>$courseId,'body'=>$body,'file_name'=>$assetFields[0],'file_original_name'=>$assetFields[1],'file_mime'=>$assetFields[2],'file_size'=>$assetFields[3]]);
+    $statement = $db->prepare('INSERT INTO materials (position,class_group_id,title,description,course_title,course_id,body,file_name,file_original_name,file_mime,file_size) VALUES (:position,:class_group_id,:title,:description,:course_title,:course_id,:body,:file_name,:file_original_name,:file_mime,:file_size) ON DUPLICATE KEY UPDATE class_group_id=VALUES(class_group_id),title=VALUES(title),description=VALUES(description),course_title=VALUES(course_title),course_id=VALUES(course_id),body=VALUES(body),file_name=VALUES(file_name),file_original_name=VALUES(file_original_name),file_mime=VALUES(file_mime),file_size=VALUES(file_size)');
+    $statement->execute(['position'=>$id,'class_group_id'=>$classGroupId,'title'=>$title,'description'=>$description,'course_title'=>$courses[$courseId],'course_id'=>$courseId,'body'=>$body,'file_name'=>$assetFields[0],'file_original_name'=>$assetFields[1],'file_mime'=>$assetFields[2],'file_size'=>$assetFields[3]]);
 } catch (Throwable $exception) {
     if ($newUploadName !== null) @unlink($uploadDir . '/' . $newUploadName);
     error_log('MutqinSpace material save database error: ' . $exception->getMessage());
     respond(500, ['ok'=>false, 'message'=>'Materi belum dapat disimpan ke database.']);
 }
 if (($newUploadName !== null || (($payload['removeAttachment'] ?? '') === '1')) && $oldAsset && $validStoredFile($oldAsset['file_name'] ?? null)) @unlink($uploadDir . '/' . $oldAsset['file_name']);
-$material = [$title,$description,$courses[$courseId],$courseId,$body];
-if ($asset) $material[] = $asset;
+$material = [$title,$description,$courses[$courseId],$courseId,$body,$asset ?: null,$classGroupId];
 respond(200, ['ok'=>true, 'id'=>$id, 'material'=>$material]);

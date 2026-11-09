@@ -10,6 +10,8 @@ if (empty($_SESSION['user'])) {
 
 try {
     $db = mutqinDb();
+    $materialColumns = $db->query('SHOW COLUMNS FROM materials')->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('class_group_id', $materialColumns, true)) $db->exec('ALTER TABLE materials ADD COLUMN class_group_id BIGINT UNSIGNED NULL AFTER position');
 } catch (Throwable $exception) {
     error_log('MutqinSpace page database error: ' . $exception->getMessage());
     http_response_code(503);
@@ -29,9 +31,10 @@ $tasks = [
     ['icon'=>'▣','title'=>'Rangkuman Islam di Nusantara','meta'=>'Sejarah Kebudayaan Islam · Dikumpulkan 18 Okt 2026','status'=>'Belum mulai','kind'=>'due'],
 ];
 $lessons = [];
-foreach ($db->query('SELECT position,title,description,course_title,course_id,body,file_name,file_original_name,file_mime,file_size FROM materials ORDER BY position')->fetchAll() as $row) {
+foreach ($db->query('SELECT position,class_group_id,title,description,course_title,course_id,body,file_name,file_original_name,file_mime,file_size FROM materials ORDER BY position')->fetchAll() as $row) {
     $lesson = [$row['title'],$row['description'],$row['course_title'],$row['course_id'],$row['body']];
-    if (!empty($row['file_name'])) $lesson[] = ['file'=>$row['file_name'],'name'=>$row['file_original_name'],'mime'=>$row['file_mime'],'size'=>(int)$row['file_size']];
+    $lesson[] = !empty($row['file_name']) ? ['file'=>$row['file_name'],'name'=>$row['file_original_name'],'mime'=>$row['file_mime'],'size'=>(int)$row['file_size']] : null;
+    $lesson[] = $row['class_group_id'] === null ? null : (int)$row['class_group_id'];
     $lessons[] = $lesson;
 }
 $libraryItems = $db->query('SELECT id,category,grade_level,juz_number,title,file_original_name,file_mime AS mime,file_size FROM library_items ORDER BY category,grade_level,juz_number DESC,created_at DESC')->fetchAll();
@@ -121,8 +124,16 @@ foreach ($assignmentCatalog as $assignment) {
 $progressData = json_decode((string)file_get_contents(__DIR__ . '/storage/progress.json'), true) ?: [];
 $completedLessons = $progressData[$student['username']] ?? [];
 $leaderboard = [];
+$leaderboardStudentUsernames = [];
+if ($classIds) {
+    $leaderboardPlaceholders = implode(',', array_fill(0, count($classIds), '?'));
+    $leaderboardMembers = $db->prepare("SELECT DISTINCT u.username FROM class_memberships cm JOIN users u ON u.id=cm.student_id WHERE cm.class_group_id IN ($leaderboardPlaceholders) AND u.role='student'");
+    $leaderboardMembers->execute(array_map('intval', $classIds));
+    $leaderboardStudentUsernames = array_fill_keys($leaderboardMembers->fetchAll(PDO::FETCH_COLUMN), true);
+}
 foreach ($studentAccounts as $account) {
     if (($account['role'] ?? '') !== 'student') continue;
+    if (!isset($leaderboardStudentUsernames[$account['username']])) continue;
     $userSubmissions = $submissionData[$account['username']] ?? [];
     $quizScore = 0;
     $quizMaximum = 0;
@@ -148,7 +159,8 @@ foreach ($courses as &$course) {
     $course['progress'] = $course['lessons'] > 0 ? (int)round($course['done'] / $course['lessons'] * 100) : 0;
 }
 unset($course);
-$lmsData = json_encode(['courses'=>$courses,'tasks'=>$tasks,'lessons'=>$lessons,'student'=>$student,'csrfToken'=>$_SESSION['csrf_token'],'completedLessons'=>$completedLessons,'leaderboard'=>$leaderboard,'pageContents'=>$pageContents,'classGroups'=>$classGroups,'libraryItems'=>$libraryItems], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+$studentDirectory = array_map(static fn(array $account): array => ['username'=>$account['username'],'name'=>$account['name'],'initials'=>$account['initials']], $studentAccounts);
+$lmsData = json_encode(['courses'=>$courses,'tasks'=>$tasks,'lessons'=>$lessons,'student'=>$student,'csrfToken'=>$_SESSION['csrf_token'],'completedLessons'=>$completedLessons,'leaderboard'=>$leaderboard,'studentDirectory'=>$studentDirectory,'pageContents'=>$pageContents,'classGroups'=>$classGroups,'libraryItems'=>$libraryItems], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!doctype html>
 <html lang="id"><head>
