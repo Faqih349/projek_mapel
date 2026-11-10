@@ -1110,3 +1110,113 @@ select.editor-input { height: 42px; }
 .exam-mode-notice .outline-button { border-color:#e6dca7; background:#fff; color:#654f19; }
 .quiz-question:disabled { opacity:.86; }
 .information-category { display:none !important; }
+
+/* Global search */
+.global-search-wrap { position: relative; width: min(310px, 28vw); }
+.global-search-icon { position: absolute; top: 50%; left: 12px; z-index: 1; color: #829086; font-size: 14px; pointer-events: none; transform: translateY(-50%); }
+.global-search { width: 100%; height: 36px; box-sizing: border-box; padding: 0 12px 0 34px; border: 1px solid var(--line); border-radius: 10px; outline: 0; background: #f8fbf8; color: var(--ink); font: 12px var(--sans); }
+.global-search:focus { border-color: #9bc7a4; background: #fff; box-shadow: var(--focus-ring); }
+.global-search-results { position: absolute; top: calc(100% + 8px); right: 0; left: 0; z-index: 40; overflow: hidden; padding: 6px; border: 1px solid #e1ebe2; border-radius: 12px; background: #fff; box-shadow: 0 16px 38px rgba(23, 60, 36, .14); }
+.global-search-results[hidden] { display: none; }
+.global-search-result { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.global-search-result:hover, .global-search-result:focus-visible { outline: 0; background: #f0f7f1; box-shadow: none; }
+.global-search-result-icon { display: grid; width: 27px; height: 27px; flex: none; place-items: center; border-radius: 8px; background: #e7f3e9; color: #287348; }
+.global-search-result b, .global-search-result small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.global-search-result b { font-size: 12px; }
+.global-search-result small { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.global-search-empty { margin: 0; padding: 12px 10px; color: var(--muted); font-size: 11px; text-align: center; }
+@media (max-width: 680px) {
+  .global-search-wrap { width: min(43vw, 190px); }
+  .global-search { height: 32px; padding-left: 30px; font-size: 11px; }
+  .global-search::placeholder { color: transparent; }
+  .global-search-results { position: fixed; top: 57px; right: 10px; left: 10px; width: auto; }
+}
+
+/* Final visual polish: one consistent surface, spacing, and interaction language. */
+:root {
+  --surface-shadow: 0 8px 24px rgba(26, 66, 39, .06);
+  --surface-shadow-hover: 0 14px 30px rgba(26, 66, 39, .11);
+  --focus-ring: 0 0 0 3px rgba(56, 148, 93, .18);
+}
+
+body { background: #f3f7f3; }
+.topbar { position: sticky; top: 0; z-index: 4; backdrop-filter: blur(12px); }
+.content { padding-top: 36px; }
+.panel, .metric, .class-group-card, .assignment, .lesson, .information-card,
+.editable-page-content, .leaderboard-panel, .library-shelf { box-shadow: var(--surface-shadow); }
+.panel, .metric, .class-group-card, .assignment, .lesson, .information-card { transition: border-color .18s, box-shadow .18s, transform .18s; }
+.class-group-card:hover, .assignment:hover, .lesson:hover, .information-card:hover { border-color: #cfe2d2; box-shadow: var(--surface-shadow-hover); transform: translateY(-1px); }
+.metric { min-height: 68px; }
+.metric-icon { box-shadow: inset 0 0 0 1px rgba(35, 131, 79, .08); }
+.section-heading { margin-top: 30px; }
+.student-home-lower { margin-top: 30px; }
+.task-row-button { border-radius: 8px; transition: background .18s, padding-left .18s; }
+.task-row-button:hover { padding-left: 8px; background: #f7faf7; }
+.primary-button, .outline-button, .filter-pill, .icon-button, .nav-item, .profile-trigger { transition: background .18s, border-color .18s, color .18s, box-shadow .18s, transform .18s; }
+.primary-button:hover, .outline-button:hover { transform: translateY(-1px); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.page-head { padding-bottom: 2px; }
+.page-subtitle { max-width: 680px; }
+.empty-note { box-shadow: none; background: #fbfdfb; }
+
+@media (max-width: 680px) {
+  .content { padding-top: 24px; }
+  .panel, .metric, .class-group-card, .assignment, .lesson, .information-card { box-shadow: 0 5px 16px rgba(26, 66, 39, .05); }
+  .section-heading { margin-top: 24px; }
+  .student-home-lower { margin-top: 24px; }
+  .task-row-button:hover { padding-left: 0; }
+}
+
+/* Learning calendar, detailed progress, notifications, and teacher insights. */
+.calendar-panel { padding: 20px; }
+.calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 17px; }
+.calendar-heading h2 { margin: 0; color: var(--deep); font: 700 18px var(--head); text-transform: capitalize; }
+.calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; }
+.calendar-weekdays { margin-bottom: 7px; color: var(--muted); font-size: 11px; font-weight: 700; text-align: center; }
+.calendar-day { min-height: 92px; padding: 8px; border: 1px solid #e6eee7; border-radius: 9px; background: #fbfdfb; }
+.calendar-day > b { display: block; color: #526356; font-size: 12px; }
+.calendar-today { border-color: #8fc09a; background: #f0f8f0; }
+.calendar-today > b { color: var(--green); }
+.calendar-empty { border-color: transparent; background: transparent; }
+.calendar-no-task { display: block; margin-top: 20px; color: #c2ccc3; text-align: center; }
+.calendar-task { display: block; width: 100%; overflow: hidden; margin-top: 7px; padding: 5px 6px; border: 0; border-radius: 6px; background: #e3f1e4; color: #286c43; font-size: 10px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-task:hover { background: #cfe8d3; }
+.calendar-task-done { background: #eef2ee; color: #778579; text-decoration: line-through; }
+.upcoming-panel { margin-top: 18px; }
+.progress-overview { margin-bottom: 25px; }
+.progress-percent { color: var(--green); font: 700 20px var(--head); }
+.progress-track-large { height: 10px; margin-top: 5px; }
+.progress-metrics { margin-bottom: 22px; }
+.teacher-insight-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+.teacher-insight-card { display: flex; align-items: center; gap: 12px; }
+.teacher-insight-card > div { min-width: 0; }
+.teacher-insight-card span:not(.teacher-home-icon), .teacher-insight-card small { display: block; color: var(--muted); font-size: 11px; }
+.teacher-insight-card b { display: block; margin: 4px 0; color: var(--deep); font: 700 22px var(--head); }
+.teacher-attention-panel { max-width: 760px; margin-bottom: 20px; }
+.teacher-attention-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.teacher-attention-row b, .teacher-attention-row small { display: block; }
+.teacher-attention-row b { font-size: 13px; }
+.teacher-attention-row small { margin-top: 3px; color: var(--muted); font-size: 11px; }
+.notification-list { display: grid; gap: 7px; margin-top: 16px; }
+.notification-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; border-radius: 9px; background: #f7faf7; color: var(--ink); text-align: left; }
+.notification-item:hover { background: #edf6ee; }
+.notification-icon { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 9px; background: #e1f0e3; color: var(--green); }
+.notification-item b, .notification-item small { display: block; }
+.notification-item b { font-size: 12px; }
+.notification-item small { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+@media (max-width: 760px) {
+  .calendar-day { min-height: 72px; padding: 6px; }
+  .calendar-task { font-size: 9px; }
+  .teacher-insight-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .calendar-panel { padding: 12px 8px; }
+  .calendar-weekdays, .calendar-grid { gap: 3px; }
+  .calendar-day { min-height: 58px; padding: 4px; border-radius: 6px; }
+  .calendar-day > b { font-size: 10px; }
+  .calendar-task { margin-top: 4px; padding: 4px 3px; font-size: 8px; }
+  .calendar-task span { display: none; }
+}
