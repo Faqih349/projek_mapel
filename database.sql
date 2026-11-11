@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   course_id VARCHAR(40) NOT NULL,
   class_group_id BIGINT UNSIGNED NULL,
   course_title VARCHAR(120) NOT NULL,
-  type ENUM('essay', 'quiz') NOT NULL,
+  type ENUM('essay', 'quiz', 'essay_quiz') NOT NULL,
   exam_mode TINYINT(1) NOT NULL DEFAULT 0,
   icon VARCHAR(30) NOT NULL DEFAULT '',
   title VARCHAR(150) NOT NULL,

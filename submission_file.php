@@ -30,7 +30,10 @@ $accounts = $db->prepare('SELECT username FROM users WHERE username=:username AN
 $accounts->execute(['username'=>$requestedUsername]);
 if (!$accounts->fetchColumn()) submissionFileError(404, 'Siswa tidak ditemukan.');
 $submissions = json_decode((string)file_get_contents(__DIR__ . '/storage/submissions.json'), true) ?: [];
-$asset = $submissions[$requestedUsername][$taskId]['attachment'] ?? null;
+$submission = $submissions[$requestedUsername][$taskId] ?? [];
+$assets = is_array($submission['attachments'] ?? null) ? $submission['attachments'] : (is_array($submission['attachment'] ?? null) ? [$submission['attachment']] : []);
+$assetIndex = max(0, (int)($_GET['index'] ?? 0));
+$asset = $assets[$assetIndex] ?? null;
 if (!is_array($asset) || !preg_match('/^[a-f0-9]{32}\.(jpg|png|webp|gif|mp4|webm|ogv)$/', (string)($asset['file'] ?? ''))) submissionFileError(404, 'Lampiran tidak ditemukan.');
 $mime = (string)($asset['mime'] ?? '');
 $allowed = ['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/ogg'];

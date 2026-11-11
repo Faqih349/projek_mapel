@@ -27,6 +27,7 @@ try { $db = mutqinDb(); } catch (Throwable $exception) {
 $assignmentColumns = $db->query('SHOW COLUMNS FROM assignments')->fetchAll(PDO::FETCH_COLUMN);
 if (!in_array('exam_mode', $assignmentColumns, true)) $db->exec('ALTER TABLE assignments ADD COLUMN exam_mode TINYINT(1) NOT NULL DEFAULT 0 AFTER type');
 if (!in_array('class_group_id', $assignmentColumns, true)) $db->exec('ALTER TABLE assignments ADD COLUMN class_group_id BIGINT UNSIGNED NULL AFTER course_id');
+$db->exec("ALTER TABLE assignments MODIFY type ENUM('essay','quiz','essay_quiz') NOT NULL");
 $catalog = [];
 $catalogQuery = $db->prepare('SELECT a.task_id,a.course_id,a.class_group_id,a.course_title,a.type,a.exam_mode,a.icon,a.title,a.due,a.description,a.prompt,a.questions,a.file_name,a.file_original_name,a.file_mime,a.file_size FROM assignments a LEFT JOIN class_groups cg ON cg.id=a.class_group_id LEFT JOIN users u ON u.id=cg.teacher_id WHERE u.username=:username OR a.class_group_id IS NULL ORDER BY a.created_at,a.task_id');
 $catalogQuery->execute(['username'=>(string)$_SESSION['user']['username']]);
@@ -69,36 +70,40 @@ if ($action === 'delete') {
     $classCheck->execute(['id'=>$classGroupId,'username'=>(string)$_SESSION['user']['username']]);
     $targetClass = $classCheck->fetch();
     $type = (string)($payload['type'] ?? 'essay');
-    $examMode = $type === 'quiz' && filter_var($payload['examMode'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    $examMode = in_array($type, ['quiz','essay_quiz'], true) && filter_var($payload['examMode'] ?? false, FILTER_VALIDATE_BOOLEAN);
     $length = static fn(string $value): int => function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
     $dueDate = DateTime::createFromFormat('!Y-m-d\TH:i', $due, new DateTimeZone('Asia/Jakarta'));
     $dueIsValid = $dueDate && $dueDate->format('Y-m-d\TH:i') === $due;
-    if ($title === '' || $length($title) > 150 || $description === '' || $length($description) > 300 || $prompt === '' || $length($prompt) > 5000 || !$dueIsValid || $length($due) > 80 || !isset($courses[$courseId]) || !$targetClass || (string)$targetClass['course_id'] !== $courseId || !in_array($type, ['essay','quiz'], true)) {
+    if ($title === '' || $length($title) > 150 || $description === '' || $length($description) > 300 || $prompt === '' || $length($prompt) > 5000 || !$dueIsValid || $length($due) > 80 || !isset($courses[$courseId]) || !$targetClass || (string)$targetClass['course_id'] !== $courseId || !in_array($type, ['essay','quiz','essay_quiz'], true)) {
         assignmentManageReply(422, ['ok'=>false,'message'=>'Lengkapi judul, tenggat, deskripsi, dan petunjuk tugas.']);
     }
     $questions = [];
-    if ($type === 'quiz') {
+    if (in_array($type, ['quiz','essay_quiz'], true)) {
         $inputQuestions = $payload['questions'] ?? null;
         if (is_string($inputQuestions)) $inputQuestions = json_decode($inputQuestions, true);
         if (!is_array($inputQuestions) || count($inputQuestions) < 1 || count($inputQuestions) > 15) {
             assignmentManageReply(422, ['ok'=>false,'message'=>'Kuis harus memiliki 1 sampai 15 soal.']);
         }
-        foreach ($inputQuestions as $question) {
+        foreach ($inputQuestions as $questionIndex => $question) {
             if (!is_array($question)) assignmentManageReply(422, ['ok'=>false,'message'=>'Format soal tidak valid.']);
             $questionText = trim((string)($question['question'] ?? ''));
+            $kind = ($question['kind'] ?? 'choice') === 'essay' ? 'essay' : 'choice';
             $options = $question['options'] ?? null;
             $answer = filter_var($question['answer'] ?? null, FILTER_VALIDATE_INT);
-            if ($questionText === '' || $length($questionText) > 500 || !is_array($options) || count($options) !== 4 || $answer === false || $answer < 0 || $answer > 3) {
+            $weight = filter_var($question['weight'] ?? null, FILTER_VALIDATE_INT);
+            if (!array_key_exists('weight', $question)) $weight = intdiv(100, count($inputQuestions)) + ($questionIndex === count($inputQuestions) - 1 ? 100 % count($inputQuestions) : 0);
+            if ($weight !== (int)$weight || $questionText === '' || $length($questionText) > 500 || $weight < 0 || $weight > 100 || ($kind === 'choice' && (!is_array($options) || count($options) !== 4 || $answer === false || $answer < 0 || $answer > 3))) {
                 assignmentManageReply(422, ['ok'=>false,'message'=>'Setiap soal perlu teks, empat pilihan jawaban, dan satu kunci jawaban.']);
             }
             $cleanOptions = [];
-            foreach ($options as $option) {
+            foreach ($kind === 'choice' ? $options : ['-', '-', '-', '-'] as $option) {
                 $option = trim((string)$option);
                 if ($option === '' || $length($option) > 300) assignmentManageReply(422, ['ok'=>false,'message'=>'Semua empat pilihan jawaban harus diisi (maksimal 300 karakter per pilihan).']);
                 $cleanOptions[] = $option;
             }
-            $questions[] = ['question'=>$questionText,'options'=>$cleanOptions,'answer'=>$answer];
+            $questions[] = ['question'=>$questionText,'kind'=>$kind,'options'=>$cleanOptions,'answer'=>$answer,'weight'=>(int)$weight];
         }
+        if (abs(array_sum(array_column($questions, 'weight')) - 100) > 0.01) assignmentManageReply(422, ['ok'=>false,'message'=>'Total bobot semua soal harus tepat 100%.']);
     }
 
     if ($index === null) $id = 'task_' . bin2hex(random_bytes(8));

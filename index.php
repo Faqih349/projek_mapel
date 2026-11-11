@@ -117,7 +117,7 @@ foreach ($assignmentCatalog as $assignment) {
         'meta'=>$assignment['courseTitle'] . ' · Dikumpulkan ' . $assignment['due'], 'due'=>$assignment['due'],
         'description'=>$assignment['description'], 'prompt'=>$assignment['prompt'], 'questions'=>$assignment['questions'], 'attachment'=>$assignment['attachment'] ?? null,
         'submissions'=>($student['role'] ?? '') === 'teacher' ? ($submissionsByTask[$assignment['id']] ?? []) : [],
-        'status'=>$submission ? ($assignment['type'] === 'quiz' ? 'Nilai ' . $submission['score'] . '/' . count($assignment['questions']) : 'Terkumpul') : 'Belum dikerjakan',
+        'status'=>$submission ? ($assignment['type'] === 'quiz' ? 'Nilai ' . $submission['score'] . '/100' : 'Terkumpul') : 'Belum dikerjakan',
         'kind'=>$submission ? 'done' : 'due', 'submitted'=>(bool)$submission, 'score'=>$submission['score'] ?? null, 'submission'=>$submission,
     ];
 }
@@ -135,17 +135,17 @@ foreach ($studentAccounts as $account) {
     if (($account['role'] ?? '') !== 'student') continue;
     if (!isset($leaderboardStudentUsernames[$account['username']])) continue;
     $userSubmissions = $submissionData[$account['username']] ?? [];
-    $quizScore = 0;
+    $quizScore = 0.0;
     $quizMaximum = 0;
     foreach ($assignmentCatalog as $assignment) {
-        if ($assignment['type'] !== 'quiz') continue;
-        $quizMaximum += count($assignment['questions']);
-        $quizScore += (int)($userSubmissions[$assignment['id']]['score'] ?? 0);
+        if (!in_array($assignment['type'], ['quiz','essay_quiz'], true)) continue;
+        $quizMaximum += 100;
+        $quizScore += (float)($userSubmissions[$assignment['id']]['score'] ?? 0);
     }
     $leaderboard[] = [
         'username'=>$account['username'], 'name'=>$account['name'], 'initials'=>$account['initials'],
-        'score'=>$quizMaximum > 0 ? (int)round($quizScore / $quizMaximum * 100) : 0,
-        'quizScore'=>$quizScore, 'quizMaximum'=>$quizMaximum,
+        'score'=>$quizMaximum > 0 ? round($quizScore / $quizMaximum * 100, 2) : 0,
+        'quizScore'=>round($quizScore, 2), 'quizMaximum'=>$quizMaximum,
         'completed'=>count($progressData[$account['username']] ?? []),
         'submitted'=>count($userSubmissions),
     ];

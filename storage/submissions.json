@@ -7,6 +7,31 @@
                 2,
                 2
             ]
+        },
+        "task_7fd7aed68137cea0": {
+            "score": 1,
+            "submittedAt": "2026-11-11T02:16:31+01:00",
+            "answers": [
+                0
+            ]
+        },
+        "task_58a2ddb72a32aacc": {
+            "score": null,
+            "submittedAt": "2026-11-11T02:18:58+01:00",
+            "attachment": {
+                "file": "dcde866d9a226ce43d57269123686820.png",
+                "name": "download__1_-removebg-preview.png",
+                "mime": "image\/png",
+                "size": 197989
+            }
+        },
+        "task_03c51db5a51ec6dc": {
+            "score": 80,
+            "submittedAt": "2026-11-11T16:37:33+01:00",
+            "answers": [
+                0,
+                2
+            ]
         }
     }
 }
