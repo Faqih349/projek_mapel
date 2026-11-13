@@ -335,6 +335,7 @@ button { cursor: pointer; }
 .sidebar { width: 248px; position: fixed; inset: 0 auto 0 0; background: var(--paper); border-right: 1px solid var(--line); padding: 27px 17px 18px; display: flex; flex-direction: column; z-index: 5; }
 .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--ink); padding: 0 11px 35px; }
 .brand-mark { background: var(--deep); color: #e5f4e5; border-radius: 12px; width: 40px; height: 40px; display: grid; place-items: center; font: 26px serif; }
+.brand-mark.brand-logo { display: block; object-fit: contain; padding: 4px; background: #e5f2df; }
 .brand b { font: 800 18px var(--head); letter-spacing: -.7px; }
 .brand-accent { color: var(--green); }
 .brand small, .teacher-card small { display: block; color: #96a198; font-size: 10px; margin-top: 3px; }
@@ -1062,8 +1063,9 @@ select.editor-input { height: 42px; }
 /* Student workspace refinements */
 .school-brand { display:flex; align-items:center; gap:10px; padding:12px 10px; border-top:1px solid var(--line); color:var(--ink); }
 .school-brand-mark { display:grid; place-items:center; width:36px; height:36px; flex:none; border-radius:11px; background:#e7f2e7; color:#17633d; font-weight:800; }
+.school-brand img.school-brand-mark { object-fit: contain; padding: 2px; background: #fff; }
 .school-brand > span:last-child { display:grid; gap:3px; min-width:0; }
-.school-brand b { font-size:12px; }
+.school-brand b { color: #fff; font-size:12px; }
 .school-brand small { color:#7b897d; font-size:10px; }
 .student-join-panel { align-items:center; }
 .student-join-panel > div:first-child { flex:1; min-width:0; }

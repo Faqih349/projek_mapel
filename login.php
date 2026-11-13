@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="login-page">
   <main class="login-shell">
     <section class="login-visual">
-      <a class="brand login-brand" href="login.php"><span class="brand-mark">م</span><span><b>Mutqin<span class="brand-accent">Space</span></b><small>Belajar dengan makna</small></span></a>
+      <a class="brand login-brand" href="login.php"><img class="brand-mark brand-logo" src="mutqinspace-logo.png" alt="Logo MutqinSpace"><span><b>Mutqin<span class="brand-accent">Space</span></b><small>Belajar dengan makna</small></span></a>
       <div class="login-visual-copy"><span class="login-kicker">RUANG BELAJAR PENDIDIKAN AGAMA</span><h1>Ilmu yang bertumbuh,<br>akhlak yang berbuah.</h1><p>Belajar, memahami, dan mengamalkan kebaikan setiap hari.</p></div>
       <div class="login-pattern" aria-hidden="true"><span>۞</span><i></i><b>✦</b></div>
     </section>
