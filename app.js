@@ -30,7 +30,7 @@ function initGlobalSearch() {
   const wrap = document.createElement("div");
   wrap.className = "global-search-wrap";
   wrap.innerHTML =
-    '<label class="sr-only" for="globalSearch">Pencarian</label><span class="global-search-icon" aria-hidden="true">⌕</span><input id="globalSearch" class="global-search" type="search" autocomplete="off" placeholder="Cari materi, tugas, atau kelas" aria-label="Cari materi, tugas, atau kelas" aria-controls="globalSearchResults"><div id="globalSearchResults" class="global-search-results" hidden></div>';
+    '<span class="global-search-icon" aria-hidden="true"></span><input id="globalSearch" class="global-search" type="search" autocomplete="off" placeholder="Cari materi, tugas, atau kelas" aria-label="Cari materi, tugas, atau kelas" aria-controls="globalSearchResults"><div id="globalSearchResults" class="global-search-results" hidden></div>';
   topbar.insertBefore(wrap, actions);
   const input = wrap.querySelector("#globalSearch");
   const results = wrap.querySelector("#globalSearchResults");
