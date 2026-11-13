@@ -1174,6 +1174,37 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .task-row-button:hover { padding-left: 0; }
 }
 
+/* Search header layout */
+.topbar { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(280px, 390px) minmax(220px, 1fr); gap: 22px; }
+.topbar > .global-search-wrap { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; }
+.topbar > .top-actions { grid-column: 3; grid-row: 1; justify-self: end; }
+.global-search-wrap { flex: none; }
+.global-search { height: 42px; padding-right: 16px; padding-left: 42px; border-radius: 13px; background: #f4f8f4; font-size: 13px; }
+.global-search-icon { left: 15px; font-size: 20px; }
+.global-search-results { top: calc(100% + 10px); padding: 8px; border-radius: 15px; }
+.global-search-result { min-height: 52px; padding: 10px 11px; }
+.global-search-result-icon { width: 32px; height: 32px; }
+.global-search-result b { font-size: 13px; }
+.global-search-result small { font-size: 11px; }
+
+@media (max-width: 900px) and (min-width: 681px) {
+  .topbar { grid-template-columns: minmax(120px, 1fr) minmax(230px, 300px) auto; gap: 12px; padding-right: 3%; padding-left: 3%; }
+  .profile-trigger { max-width: 190px; }
+  .profile-trigger .top-user { display: none; }
+}
+
+@media (max-width: 680px) {
+  .topbar { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; grid-template-areas: 'menu breadcrumb actions' 'search search search'; height: auto; min-height: 72px; gap: 10px 8px; padding: 10px 11px 12px; }
+  .topbar > .mobile-menu { grid-area: menu; }
+  .topbar > .breadcrumb { grid-area: breadcrumb; align-self: center; min-width: 0; }
+  .topbar > .global-search-wrap { grid-area: search; width: 100%; }
+  .topbar > .top-actions { grid-area: actions; max-width: none; justify-self: end; }
+  .global-search-wrap { min-width: 0; }
+  .global-search { height: 40px; font-size: 12px; }
+  .global-search-icon { left: 13px; font-size: 19px; }
+  .global-search-results { position: absolute; top: calc(100% + 8px); right: 0; left: 0; width: auto; max-height: min(430px, 58vh); }
+}
+
 /* Learning calendar, detailed progress, notifications, and teacher insights. */
 .calendar-panel { padding: 20px; }
 .calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 17px; }
