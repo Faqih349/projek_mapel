@@ -176,8 +176,8 @@ if ($action === 'save' && $index === null) {
         $recipients = array_column($recipientsQuery->fetchAll(), 'email');
         if (!$recipients) {
             $emailNotice = ['status'=>'no_recipients','sent'=>0,'message'=>'Tugas tersimpan, tetapi belum ada siswa dengan email di kelas ini.'];
-        } elseif (trim((string)(getenv('MUTQIN_SMTP_HOST') ?: '')) === '') {
-            $emailNotice = ['status'=>'not_configured','sent'=>0,'message'=>'Tugas tersimpan, tetapi email belum dikirim karena SMTP belum dikonfigurasi.'];
+        } elseif (!mutqinSmtpIsConfigured()) {
+            $emailNotice = ['status'=>'not_configured','sent'=>0,'message'=>'Tugas tersimpan, tetapi email belum dikirim. Hubungkan Gmail melalui Pengaturan akun.'];
         } else {
             $sentCount = mutqinSendTaskNotification($recipients, $assignment, (string)$assignment['className'], (string)($_SESSION['user']['name'] ?? 'Guru'));
             $emailNotice = $sentCount > 0

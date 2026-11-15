@@ -1,6 +1,72 @@
 <?php
 declare(strict_types=1);
 
+function mutqinSmtpSettings(): array
+{
+    $settings = [
+        'host'=>'smtp.gmail.com',
+        'port'=>'587',
+        'security'=>'starttls',
+        'username'=>'',
+        'password'=>'',
+        'fromEmail'=>'',
+        'fromName'=>'MutqinSpace',
+    ];
+    $settingsPath = __DIR__ . '/storage/email_settings.json';
+
+    if (is_file($settingsPath)) {
+        $contents = file_get_contents($settingsPath);
+        $stored = $contents === false ? null : json_decode($contents, true);
+        if (!is_array($stored)) throw new RuntimeException('Pengaturan email tersimpan tidak dapat dibaca.');
+        foreach (array_keys($settings) as $key) {
+            if (isset($stored[$key]) && is_scalar($stored[$key])) $settings[$key] = (string)$stored[$key];
+        }
+    } else {
+        $settings['host'] = trim((string)(getenv('MUTQIN_SMTP_HOST') ?: $settings['host']));
+        $settings['port'] = (string)(getenv('MUTQIN_SMTP_PORT') ?: $settings['port']);
+        $settings['security'] = strtolower(trim((string)(getenv('MUTQIN_SMTP_SECURITY') ?: $settings['security'])));
+        $settings['username'] = trim((string)(getenv('MUTQIN_SMTP_USER') ?: ''));
+        $settings['password'] = preg_replace('/\s+/', '', (string)(getenv('MUTQIN_SMTP_PASSWORD') ?: '')) ?? '';
+        $settings['fromEmail'] = strtolower(trim((string)(getenv('MUTQIN_SMTP_FROM_EMAIL') ?: $settings['username'])));
+        $settings['fromName'] = trim((string)(getenv('MUTQIN_SMTP_FROM_NAME') ?: $settings['fromName']));
+    }
+
+    $settings['password'] = preg_replace('/\s+/', '', (string)$settings['password']) ?? '';
+    return $settings;
+}
+
+function mutqinSmtpIsConfigured(): bool
+{
+    $settings = mutqinSmtpSettings();
+    return trim((string)$settings['username']) !== ''
+        && trim((string)$settings['password']) !== ''
+        && filter_var((string)$settings['username'], FILTER_VALIDATE_EMAIL) !== false;
+}
+
+function mutqinSaveSmtpSettings(string $email, string $appPassword): void
+{
+    $currentSettings = mutqinSmtpSettings();
+    $appPassword = preg_replace('/\s+/', '', $appPassword) ?? '';
+    if ($appPassword === '') $appPassword = (string)$currentSettings['password'];
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || $appPassword === '') {
+        throw new InvalidArgumentException('Alamat Gmail dan App Password wajib diisi.');
+    }
+
+    $settings = [
+        'host'=>'smtp.gmail.com',
+        'port'=>'587',
+        'security'=>'starttls',
+        'username'=>$email,
+        'password'=>$appPassword,
+        'fromEmail'=>$email,
+        'fromName'=>'MutqinSpace',
+    ];
+    $encoded = json_encode($settings, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+    if ($encoded === false || file_put_contents(__DIR__ . '/storage/email_settings.json', $encoded, LOCK_EX) === false) {
+        throw new RuntimeException('Pengaturan Gmail belum dapat disimpan di folder storage.');
+    }
+}
+
 function mutqinSmtpWrite($socket, string $data): void
 {
     $offset = 0;
@@ -39,18 +105,18 @@ function mutqinSmtpCommand($socket, string $command, array $expectedCodes): stri
 
 function mutqinSendTaskNotification(array $recipients, array $assignment, string $className, string $teacherName): int
 {
-    $host = trim((string)(getenv('MUTQIN_SMTP_HOST') ?: ''));
-    $portValue = getenv('MUTQIN_SMTP_PORT') ?: '587';
-    $security = strtolower(trim((string)(getenv('MUTQIN_SMTP_SECURITY') ?: 'starttls')));
-    $username = (string)(getenv('MUTQIN_SMTP_USER') ?: '');
-    $password = (string)(getenv('MUTQIN_SMTP_PASSWORD') ?: '');
-    $fromEmail = strtolower(trim((string)(getenv('MUTQIN_SMTP_FROM_EMAIL') ?: $username)));
-    $fromName = trim((string)(getenv('MUTQIN_SMTP_FROM_NAME') ?: 'MutqinSpace'));
-    $port = filter_var($portValue, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1, 'max_range'=>65535]]);
+    $settings = mutqinSmtpSettings();
+    $host = trim((string)$settings['host']);
+    $security = strtolower(trim((string)$settings['security']));
+    $username = trim((string)$settings['username']);
+    $password = (string)$settings['password'];
+    $fromEmail = strtolower(trim((string)($settings['fromEmail'] ?: $username)));
+    $fromName = trim((string)$settings['fromName']);
+    $port = filter_var($settings['port'], FILTER_VALIDATE_INT, ['options'=>['min_range'=>1, 'max_range'=>65535]]);
 
     if ($host === '' || $port === false || !in_array($security, ['starttls', 'ssl'], true)
-        || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL) || $fromName === ''
-        || (($username === '') !== ($password === ''))) {
+        || !filter_var($username, FILTER_VALIDATE_EMAIL) || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)
+        || $password === '' || $fromName === '') {
         throw new RuntimeException('Konfigurasi SMTP belum lengkap atau tidak valid.');
     }
     if (!preg_match('/^[A-Za-z0-9.-]+$/', $host)) {
@@ -92,9 +158,7 @@ function mutqinSendTaskNotification(array $recipients, array $assignment, string
             mutqinSmtpCommand($socket, 'EHLO ' . ($helo ?: 'localhost'), ['250']);
         }
 
-        if ($username !== '') {
-            mutqinSmtpCommand($socket, 'AUTH PLAIN ' . base64_encode("\0" . $username . "\0" . $password), ['235']);
-        }
+        mutqinSmtpCommand($socket, 'AUTH PLAIN ' . base64_encode("\0" . $username . "\0" . $password), ['235']);
         mutqinSmtpCommand($socket, 'MAIL FROM:<' . $fromEmail . '>', ['250']);
         foreach (array_keys($validRecipients) as $recipient) {
             mutqinSmtpCommand($socket, 'RCPT TO:<' . $recipient . '>', ['250', '251']);

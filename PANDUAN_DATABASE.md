@@ -29,17 +29,14 @@ Pengaturan lokal XAMPP ada di `db.php` (host `127.0.0.1`, port `3306`, database 
 
 Saat guru membuat tugas baru, aplikasi mengirim satu email kepada siswa yang sudah bergabung di kelas tujuan. Email siswa tidak saling terlihat. Pengiriman memerlukan akun SMTP; tanpa konfigurasi SMTP, tugas tetap tersimpan dan aplikasi menampilkan pemberitahuan bahwa email belum terkirim. Perubahan tugas yang sudah ada tidak mengirim email ulang.
 
-Atur variabel lingkungan berikut pada server Apache/PHP, lalu mulai ulang Apache. Untuk Gmail, gunakan `smtp.gmail.com`, port `587`, keamanan `starttls`, dan App Password (bukan kata sandi akun biasa).
+### Menghubungkan Gmail
 
-- `MUTQIN_SMTP_HOST`
-- `MUTQIN_SMTP_PORT` (umumnya `587`)
-- `MUTQIN_SMTP_SECURITY` (`starttls` atau `ssl`)
-- `MUTQIN_SMTP_USER`
-- `MUTQIN_SMTP_PASSWORD`
-- `MUTQIN_SMTP_FROM_EMAIL` (alamat pengirim; boleh sama dengan akun SMTP)
-- `MUTQIN_SMTP_FROM_NAME` (opsional; default `MutqinSpace`)
+1. Pada akun Google pengirim, aktifkan **Verifikasi 2 Langkah**.
+2. Buat App Password di [Google App Passwords](https://myaccount.google.com/apppasswords). Gunakan App Password, bukan kata sandi Gmail biasa.
+3. Masuk sebagai guru, buka **Pengaturan akun**, lalu isi bagian **Notifikasi email tugas** dengan alamat Gmail dan App Password.
+4. Tekan **Simpan dan uji Gmail**. Aplikasi mengirim email percobaan ke alamat Gmail tersebut; setelah berhasil, pengaturan tersimpan dan tidak perlu diisi lagi.
 
-Simpan kredensial SMTP hanya pada konfigurasi environment server, jangan di dalam kode atau repository.
+App Password disimpan di `storage/email_settings.json`. Folder `storage` diblokir dari akses langsung melalui web, dan file pengaturan ini diabaikan Git; namun App Password tidak dienkripsi di disk. Jangan membagikan atau memasukkan App Password ke repository. Jika menu App Passwords tidak tersedia, akun Google mungkin tidak memenuhi syarat; kata sandi Gmail biasa tidak dapat digunakan.
 
 Akun demo yang ikut dimigrasikan:
 

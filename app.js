@@ -498,9 +498,30 @@ function leaderboardPage() {
 function helpPage() {
   return `<div class="page-head"><div><div class="eyebrow">KAMI SIAP MEMBANTU</div><h1 class="page-title">Pusat bantuan</h1><p class="page-subtitle">Panduan singkat untuk memulai kegiatan belajarmu.</p></div></div><section class="panel"><div class="panel-heading"><h2>Mulai belajar di MutqinSpace</h2></div><div class="lesson-list"><div class="lesson"><div class="lesson-number">01</div><div class="lesson-copy"><b>Buka kelas yang kamu ikuti</b><small>Pilih menu Kelas saya untuk membuka materi, tugas, informasi, dan nilai di kelas yang kamu ikuti.</small></div></div><div class="lesson"><div class="lesson-number">02</div><div class="lesson-copy"><b>Pelajari materi secara berurutan</b><small>Baca ringkasan dan tujuan belajar pada tiap topik.</small></div></div><div class="lesson"><div class="lesson-number">03</div><div class="lesson-copy"><b>Kumpulkan tugas dan ikuti diskusi</b><small>Periksa tenggat tugas dan sampaikan pendapat dengan santun.</small></div></div></div></section>`;
 }
+async function loadSmtpSettings() {
+  const form = document.getElementById("smtpSettingsForm");
+  if (!form) return;
+  const status = document.getElementById("smtpSettingsStatus");
+  try {
+    const response = await fetch("smtp_settings.php", { cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok || !result.ok)
+      throw new Error(result.message || "Pengaturan Gmail belum dapat dibaca.");
+    document.getElementById("smtpEmail").value = result.email || "";
+    document.getElementById("smtpAppPassword").required = !result.configured;
+    status.textContent = result.configured
+      ? `Pengaturan tersimpan untuk ${result.email}. Kosongkan App Password jika tidak ingin menggantinya.`
+      : "Belum diatur. Isi Gmail pengirim dan App Password Google.";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
 function accountPage() {
   const isStudent = student.role !== "teacher";
-  return `<div class="page-head"><div><div class="eyebrow">PREFERENSI & KEAMANAN</div><h1 class="page-title">Pengaturan akun</h1><p class="page-subtitle">Perbarui profil dan keamanan akun MutqinSpace-mu.</p></div></div><section class="panel account-panel"><div class="account-intro"><div class="top-avatar account-avatar">${escapeHtml(student.initials)}</div><div><b>${escapeHtml(student.name)}</b><small>${isStudent ? "Siswa &middot; " + escapeHtml(student.class || "Kelas belum diisi") : "Guru Pendidikan Agama"}</small></div></div><form id="accountForm" class="account-form"><h2>Profil ${isStudent ? "siswa" : "guru"}</h2><label for="accountName">Nama ${isStudent ? "siswa" : "guru"}</label><input id="accountName" type="text" maxlength="150" value="${escapeHtml(student.name)}" autocomplete="name" required>${isStudent ? `<label for="accountNisn">NISN</label><input id="accountNisn" type="text" inputmode="numeric" maxlength="30" value="${escapeHtml(student.nisn || "")}" placeholder="Masukkan NISN"><label for="accountClass">Kelas sekolah</label><input id="accountClass" type="text" maxlength="40" value="${escapeHtml(student.class || "")}" placeholder="Contoh: XI IPA 2">` : ""}<div class="settings-divider"></div><label for="accountEmail">Alamat email</label><input id="accountEmail" type="email" value="${escapeHtml(student.email || "")}" autocomplete="email" required><div class="settings-divider"></div><h2>Ganti kata sandi</h2><p class="account-help">Kosongkan kata sandi baru jika hanya ingin memperbarui profil.</p><label for="currentPassword">Kata sandi saat ini <span>Wajib untuk menyimpan perubahan</span></label><input id="currentPassword" type="password" autocomplete="current-password" required><div class="password-fields"><div><label for="newPassword">Kata sandi baru</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Minimal 8 karakter"></div><div><label for="confirmPassword">Konfirmasi kata sandi</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Ulangi kata sandi baru"></div></div><button class="primary-button account-save" type="submit">Simpan perubahan <span>&#8594;</span></button></form></section>`;
+  const smtpSettingsForm = isStudent
+    ? ""
+    : `<div class="settings-divider"></div><form id="smtpSettingsForm" class="account-form smtp-settings-form"><h2>Notifikasi email tugas</h2><p id="smtpSettingsStatus" class="account-help" role="status">Memeriksa pengaturan Gmail…</p><label for="smtpEmail">Gmail pengirim</label><input id="smtpEmail" type="email" autocomplete="email" placeholder="nama@gmail.com" required><label for="smtpAppPassword">App Password Google</label><input id="smtpAppPassword" type="password" autocomplete="new-password" placeholder="Tempel App Password"><p class="account-help">App Password disimpan di server lokal, tidak ditampilkan kembali, dan tidak dienkripsi. Kosongkan jika sudah tersimpan.</p><button class="primary-button account-save" type="submit">Simpan dan uji Gmail <span>&#8594;</span></button></form>`;
+  return `<div class="page-head"><div><div class="eyebrow">PREFERENSI & KEAMANAN</div><h1 class="page-title">Pengaturan akun</h1><p class="page-subtitle">Perbarui profil dan keamanan akun MutqinSpace-mu.</p></div></div><section class="panel account-panel"><div class="account-intro"><div class="top-avatar account-avatar">${escapeHtml(student.initials)}</div><div><b>${escapeHtml(student.name)}</b><small>${isStudent ? "Siswa &middot; " + escapeHtml(student.class || "Kelas belum diisi") : "Guru Pendidikan Agama"}</small></div></div><form id="accountForm" class="account-form"><h2>Profil ${isStudent ? "siswa" : "guru"}</h2><label for="accountName">Nama ${isStudent ? "siswa" : "guru"}</label><input id="accountName" type="text" maxlength="150" value="${escapeHtml(student.name)}" autocomplete="name" required>${isStudent ? `<label for="accountNisn">NISN</label><input id="accountNisn" type="text" inputmode="numeric" maxlength="30" value="${escapeHtml(student.nisn || "")}" placeholder="Masukkan NISN"><label for="accountClass">Kelas sekolah</label><input id="accountClass" type="text" maxlength="40" value="${escapeHtml(student.class || "")}" placeholder="Contoh: XI IPA 2">` : ""}<div class="settings-divider"></div><label for="accountEmail">Alamat email</label><input id="accountEmail" type="email" value="${escapeHtml(student.email || "")}" autocomplete="email" required><div class="settings-divider"></div><h2>Ganti kata sandi</h2><p class="account-help">Kosongkan kata sandi baru jika hanya ingin memperbarui profil.</p><label for="currentPassword">Kata sandi saat ini <span>Wajib untuk menyimpan perubahan</span></label><input id="currentPassword" type="password" autocomplete="current-password" required><div class="password-fields"><div><label for="newPassword">Kata sandi baru</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Minimal 8 karakter"></div><div><label for="confirmPassword">Konfirmasi kata sandi</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Ulangi kata sandi baru"></div></div><button class="primary-button account-save" type="submit">Simpan perubahan <span>&#8594;</span></button></form>${smtpSettingsForm}</section>`;
 }
 const renderers = {
   beranda: home,
@@ -552,6 +573,7 @@ function render(key) {
       ? pageContentSection(key)
       : "");
   document.getElementById("crumb").textContent = names[key] || "Beranda";
+  if (key === "pengaturan" && student.role === "teacher") loadSmtpSettings();
   document
     .querySelectorAll(".nav-item[data-page]")
     .forEach((x) => x.classList.toggle("active", x.dataset.page === key));
@@ -1717,6 +1739,39 @@ document.addEventListener("submit", async (e) => {
   } finally {
     button.disabled = false;
     button.innerHTML = "Simpan perubahan <span>→</span>";
+  }
+});
+document.addEventListener("submit", async (e) => {
+  if (!e.target.matches("#smtpSettingsForm")) return;
+  e.preventDefault();
+  const form = e.target;
+  const button = form.querySelector('button[type="submit"]');
+  const status = document.getElementById("smtpSettingsStatus");
+  button.disabled = true;
+  button.textContent = "Menyimpan dan menguji…";
+  try {
+    const response = await fetch("smtp_settings.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        csrfToken,
+        email: document.getElementById("smtpEmail").value,
+        appPassword: document.getElementById("smtpAppPassword").value,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok)
+      throw new Error(result.message || "Pengaturan Gmail belum tersimpan.");
+    status.textContent = result.message;
+    document.getElementById("smtpAppPassword").value = "";
+    document.getElementById("smtpAppPassword").required = false;
+    notify(result.message);
+  } catch (error) {
+    status.textContent = error.message;
+    notify(error.message);
+  } finally {
+    button.disabled = false;
+    button.innerHTML = "Simpan dan uji Gmail <span>→</span>";
   }
 });
 document

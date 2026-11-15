@@ -94,9 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $db = mutqinDb();
             $userColumns = $db->query('SHOW COLUMNS FROM users')->fetchAll(PDO::FETCH_COLUMN);
-            $nisnColumn = in_array('nisn', $userColumns, true) ? 'nisn,' : '';
-            $statement = $db->prepare("SELECT username,name,email,initials,class_name,{$nisnColumn}role,password_hash FROM users WHERE LOWER(username)=LOWER(:login) OR LOWER(email)=LOWER(:email) LIMIT 1");
-            $statement->execute(['login'=>$username, 'email'=>$username]);
+            $hasNisnColumn = in_array('nisn', $userColumns, true);
+            $nisnColumn = $hasNisnColumn ? 'nisn,' : '';
+            $nisnSearch = $hasNisnColumn ? ' OR nisn=:nisn' : '';
+            $statement = $db->prepare("SELECT username,name,email,initials,class_name,{$nisnColumn}role,password_hash FROM users WHERE LOWER(username)=LOWER(:login) OR LOWER(email)=LOWER(:email){$nisnSearch} LIMIT 1");
+            $loginValues = ['login'=>$username, 'email'=>$username];
+            if ($hasNisnColumn) $loginValues['nisn'] = $username;
+            $statement->execute($loginValues);
             $account = $statement->fetch();
         } catch (PDOException $exception) {
             error_log('MutqinSpace login database error: ' . $exception->getMessage());
