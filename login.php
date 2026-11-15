@@ -97,18 +97,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $hasNisnColumn = in_array('nisn', $userColumns, true);
             $nisnColumn = $hasNisnColumn ? 'nisn,' : '';
             $nisnSearch = $hasNisnColumn ? ' OR nisn=:nisn' : '';
-            $statement = $db->prepare("SELECT username,name,email,initials,class_name,{$nisnColumn}role,password_hash FROM users WHERE LOWER(username)=LOWER(:login) OR LOWER(email)=LOWER(:email){$nisnSearch} LIMIT 1");
-            $loginValues = ['login'=>$username, 'email'=>$username];
+            $statement = $db->prepare("SELECT username,name,email,initials,class_name,{$nisnColumn}role,password_hash FROM users WHERE LOWER(username)=LOWER(:login) OR LOWER(email)=LOWER(:email) OR LOWER(name)=LOWER(:name){$nisnSearch}");
+            $loginValues = ['login'=>$username, 'email'=>$username, 'name'=>$username];
             if ($hasNisnColumn) $loginValues['nisn'] = $username;
             $statement->execute($loginValues);
-            $account = $statement->fetch();
+            $account = false;
+            foreach ($statement->fetchAll() as $candidate) {
+                if (password_verify($password, (string)($candidate['password_hash'] ?? ''))) {
+                    $account = $candidate;
+                    break;
+                }
+            }
         } catch (PDOException $exception) {
             error_log('MutqinSpace login database error: ' . $exception->getMessage());
             $account = false;
             $error = 'Tidak dapat terhubung ke MySQL. Jalankan MySQL di XAMPP dan pastikan database mutqinspace sudah tersedia.';
         }
 
-        if ($account && password_verify($password, (string)($account['password_hash'] ?? ''))) {
+        if ($account) {
             session_regenerate_id(true);
             $_SESSION['user'] = [
                 'username' => (string)($account['username'] ?? ''),
@@ -161,8 +167,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <button class="login-submit" type="submit">Buat akun <span>→</span></button>
           <p class="login-footnote">Sudah memiliki akun? <a href="login.php">Masuk di sini</a>.</p>
         <?php else: ?>
-          <label for="username">Nama pengguna, email, atau NISN</label>
-          <input id="username" name="username" type="text" autocomplete="username" placeholder="Masukkan nama pengguna, email, atau NISN" value="<?= htmlspecialchars($username, ENT_QUOTES, 'UTF-8') ?>" required>
+          <label for="username">Nama pengguna, nama lengkap, email, atau NISN</label>
+          <input id="username" name="username" type="text" autocomplete="username" placeholder="Masukkan nama pengguna, nama lengkap, email, atau NISN" value="<?= htmlspecialchars($username, ENT_QUOTES, 'UTF-8') ?>" required>
           <label for="password">Kata sandi</label>
           <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Masukkan kata sandi" required>
           <button class="login-submit" type="submit">Masuk <span>→</span></button>

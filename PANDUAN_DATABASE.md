@@ -15,7 +15,7 @@ MutqinSpace memakai MySQL/MariaDB untuk akun siswa dan guru, kelas, keanggotaan 
 
    Migrasi awal menyalin akun, materi, dan tugas/kuis lama dari file JSON ke database. Jalankan sekali saat menyiapkan database; jangan jalankan ulang setelah data dikelola di aplikasi karena file JSON sumber tidak ikut diperbarui. Jika database sebelumnya sudah dibuat, impor `database.sql` lagi setelah pembaruan untuk menambahkan tabel kelas dan `library_items` (perintah `CREATE TABLE IF NOT EXISTS` aman dijalankan ulang). Untuk mengaktifkan profil siswa yang menyimpan NISN, buka tab **SQL** di phpMyAdmin lalu jalankan sekali: `ALTER TABLE users ADD COLUMN nisn VARCHAR(30) NOT NULL DEFAULT '' AFTER class_name;`. Skema baru dari `database.sql` sudah menyertakan kolom ini. Kolom `exam_mode` untuk ujian mode fokus dibuat otomatis oleh `assignment_manage.php` ketika guru membuka pengelolaan tugas; skema baru juga sudah menyertakannya.
 
-Siswa baru dapat memilih **Buat akun siswa** dari halaman masuk dan mengisi nama lengkap, email, NISN 10 digit, serta kata sandi minimal 8 karakter. Akun tersimpan sebagai siswa, dan NISN dapat digunakan sebagai nama pengguna saat masuk.
+Siswa baru dapat memilih **Buat akun siswa** dari halaman masuk dan mengisi nama lengkap, email, NISN 10 digit, serta kata sandi minimal 8 karakter. Akun tersimpan sebagai siswa; saat masuk, siswa dapat menggunakan NISN, nama lengkap, atau email.
 
 ## Kelas dan kode undangan
 
