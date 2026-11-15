@@ -584,6 +584,8 @@ dialog::backdrop { background: #17271d80; backdrop-filter: blur(3px); }
 .demo-credentials b { margin-bottom: 2px; color: #356447; font-size: 10px; }
 .demo-credentials code { color: #245e3b; font: 600 9px var(--sans); }
 .login-footnote { margin: 18px 0 0; color: #9aa49c; text-align: center; font-size: 9px; line-height: 1.6; }
+.login-footnote a { color: #17643e; font-weight: 700; text-decoration: none; }
+.login-footnote a:hover { text-decoration: underline; }
 .logout-form { margin: 0; }
 
 /* Cartoon night sky navigation */

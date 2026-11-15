@@ -2,6 +2,7 @@
 declare(strict_types=1);
 session_start();
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/email_notifications.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
@@ -166,4 +167,26 @@ if ($action === 'delete' || $newUploadName !== null || (($payload['removeAttachm
     if (is_array($oldAttachment) && $validStoredFile($oldAttachment['file'] ?? null)) @unlink($uploadDir . '/' . $oldAttachment['file']);
 }
 if ($encodedSubmissions === false || file_put_contents($submissionsPath, $encodedSubmissions, LOCK_EX) === false) assignmentManageReply(500, ['ok'=>false,'message'=>'Tugas tersimpan, tetapi data pengumpulan lama gagal diperbarui.']);
-assignmentManageReply(200, ['ok'=>true,'assignment'=>$action === 'save' ? $assignment : null,'id'=>$id]);
+
+$emailNotice = null;
+if ($action === 'save' && $index === null) {
+    try {
+        $recipientsQuery = $db->prepare('SELECT u.email FROM class_memberships cm JOIN users u ON u.id=cm.student_id WHERE cm.class_group_id=:class_id AND u.role=\'student\' AND u.email<>\'\'');
+        $recipientsQuery->execute(['class_id'=>$assignment['classGroupId']]);
+        $recipients = array_column($recipientsQuery->fetchAll(), 'email');
+        if (!$recipients) {
+            $emailNotice = ['status'=>'no_recipients','sent'=>0,'message'=>'Tugas tersimpan, tetapi belum ada siswa dengan email di kelas ini.'];
+        } elseif (trim((string)(getenv('MUTQIN_SMTP_HOST') ?: '')) === '') {
+            $emailNotice = ['status'=>'not_configured','sent'=>0,'message'=>'Tugas tersimpan, tetapi email belum dikirim karena SMTP belum dikonfigurasi.'];
+        } else {
+            $sentCount = mutqinSendTaskNotification($recipients, $assignment, (string)$assignment['className'], (string)($_SESSION['user']['name'] ?? 'Guru'));
+            $emailNotice = $sentCount > 0
+                ? ['status'=>'sent','sent'=>$sentCount,'message'=>'Tugas tersimpan dan notifikasi email dikirim ke ' . $sentCount . ' siswa di kelas ini.']
+                : ['status'=>'no_recipients','sent'=>0,'message'=>'Tugas tersimpan, tetapi tidak ada alamat email siswa yang valid di kelas ini.'];
+        }
+    } catch (Throwable $exception) {
+        error_log('MutqinSpace task email delivery failed: ' . $exception->getMessage());
+        $emailNotice = ['status'=>'failed','sent'=>0,'message'=>'Tugas tersimpan, tetapi email gagal dikirim. Periksa konfigurasi dan koneksi SMTP.'];
+    }
+}
+assignmentManageReply(200, ['ok'=>true,'assignment'=>$action === 'save' ? $assignment : null,'id'=>$id,'emailNotice'=>$emailNotice]);

@@ -1006,6 +1006,7 @@ document.addEventListener("click", async (e) => {
       if (!response.ok || !result.ok)
         throw new Error(result.message || "Tugas belum tersimpan.");
       const item = result.assignment;
+      const emailNotice = result.emailNotice;
       const task = {
         ...item,
         meta: `${item.courseTitle} · Dikumpulkan ${item.due}`,
@@ -1020,7 +1021,10 @@ document.addEventListener("click", async (e) => {
       else tasks[taskIndex] = task;
       document.getElementById("lessonDialog").close();
       refreshCurrentPage();
-      notify("Tugas atau kuis berhasil disimpan.");
+      notify(
+        emailNotice?.message ||
+          "Tugas atau kuis berhasil disimpan.",
+      );
     } catch (error) {
       notify(error.message);
       saveAssignment.disabled = false;
