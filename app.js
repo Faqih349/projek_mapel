@@ -200,17 +200,60 @@ function openClassEditor() {
 function home() {
   if (isTeacher) return teacherHome();
   const date = new Date();
-  const pendingTasks = studentTasks().filter((task) => !task.submitted);
-  return `<div class="welcome-row student-welcome"><div><div class="eyebrow">${date.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase()}</div><h1>Assalamu'alaikum, ${escapeHtml(student.name)} <span style="font-size:21px">&#10022;</span></h1><p>Siap belajar dan bertumbuh hari ini? Lanjutkan dari kelas yang kamu ikuti.</p></div><div class="date-chip">${classGroups.length} kelas diikuti</div></div><section class="metrics student-metrics"><div class="metric"><div class="metric-icon">&#9638;</div><div><strong>${classGroups.length}</strong><span>Kelas diikuti</span></div></div><div class="metric"><div class="metric-icon">&#9745;</div><div><strong>${pendingTasks.length}</strong><span>Tugas menunggu</span></div></div><div class="metric"><div class="metric-icon">&#9635;</div><div><strong>${completedLessons.length}</strong><span>Materi selesai</span></div></div><div class="metric"><div class="metric-icon">&#10003;</div><div><strong>${studentTasks().filter((task) => task.type === "quiz" && task.submitted).length}</strong><span>Kuis selesai</span></div></div></section>${classAccessPanel()}<div class="section-heading"><div><h2>Kelas yang kamu ikuti</h2><p>Guru dan materi belajar kelasmu ada di sini.</p></div><button class="text-link" data-page="kelas">Lihat semua kelas &nbsp; &#8594;</button></div>${classGroups.length ? `<section class="class-group-list student-home-classes">${classGroups.map((group) => classGroupCard(group)).join("")}</section>` : `<section class="panel student-empty-classes"><span class="student-empty-icon">&#9638;</span><div><b>Belum ada kelas yang diikuti</b><p>Gabung dengan kode kelas dari guru untuk melihat materi dan tugasmu.</p></div><button class="outline-button" data-page="kelas">Masukkan kode kelas</button></section>`}<div class="lower-grid student-home-lower"><section class="panel"><div class="panel-heading"><div><h2>Tugas berikutnya</h2><p>${pendingTasks.length ? `${pendingTasks.length} tugas belum selesai` : "Semua tugas sudah dikerjakan"}</p></div><button data-page="tugas">Lihat semua &#8594;</button></div>${
-    pendingTasks
-      .slice(0, 4)
-      .map(
-        (task) =>
-          `<button class="task-row task-row-button" data-task="${escapeHtml(task.id)}"><span class="task-icon">${escapeHtml(task.icon)}</span><span class="task-text"><b>${escapeHtml(task.title)}</b><small>${escapeHtml(task.meta)}</small></span><span class="task-status">Kerjakan &#8594;</span></button>`,
-      )
-      .join("") ||
-    '<p class="empty-note">Belum ada tugas baru dari kelasmu.</p>'
-  }</section><section class="panel student-home-tip"><div class="quote-label">&#10022; &nbsp; PENGINGAT BELAJAR</div><blockquote>Belajar sedikit demi sedikit, lalu amalkan ilmunya dalam kebaikan.</blockquote><button class="outline-button" data-page="materi">Buka materi belajar &#8594;</button></section></div>`;
+  const visibleTasks = studentTasksForJoinedClasses();
+  const pendingTasks = visibleTasks.filter((task) => !task.submitted);
+  const completedLessonCount = studentCompletedLessonCount();
+  const completedQuizCount = visibleTasks.filter(
+    (task) => task.type === "quiz" && task.submitted,
+  ).length;
+  return `
+    <div class="welcome-row student-welcome">
+      <div>
+        <div class="eyebrow">${date.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase()}</div>
+        <h1>Assalamu'alaikum, ${escapeHtml(student.name)} <span style="font-size:21px">&#10022;</span></h1>
+        <p>Siap belajar dan bertumbuh hari ini? Lanjutkan dari kelas yang kamu ikuti.</p>
+      </div>
+      <div class="date-chip">${classGroups.length} kelas diikuti</div>
+    </div>
+    <section class="metrics student-metrics">
+      <div class="metric"><div class="metric-icon">&#9638;</div><div><strong>${classGroups.length}</strong><span>Kelas diikuti</span></div></div>
+      <div class="metric"><div class="metric-icon">&#9745;</div><div><strong>${pendingTasks.length}</strong><span>Tugas menunggu</span></div></div>
+      <div class="metric"><div class="metric-icon">&#9635;</div><div><strong>${completedLessonCount}</strong><span>Materi selesai</span></div></div>
+      <div class="metric"><div class="metric-icon">&#10003;</div><div><strong>${completedQuizCount}</strong><span>Kuis selesai</span></div></div>
+    </section>
+    ${classAccessPanel()}
+    <div class="section-heading">
+      <div><h2>Kelas yang kamu ikuti</h2><p>Guru dan materi belajar kelasmu ada di sini.</p></div>
+      <button class="text-link" data-page="kelas">Lihat semua kelas &nbsp; &#8594;</button>
+    </div>
+    ${
+      classGroups.length
+        ? `<section class="class-group-list student-home-classes">${classGroups.map((group) => classGroupCard(group)).join("")}</section>`
+        : `<section class="panel student-empty-classes"><span class="student-empty-icon">&#9638;</span><div><b>Belum ada kelas yang diikuti</b><p>Gabung dengan kode kelas dari guru untuk melihat materi dan tugasmu.</p></div><button class="outline-button" data-page="kelas">Masukkan kode kelas</button></section>`
+    }
+    <div class="lower-grid student-home-lower">
+      <section class="panel">
+        <div class="panel-heading">
+          <div><h2>Tugas berikutnya</h2><p>${pendingTasks.length ? `${pendingTasks.length} tugas belum selesai` : "Semua tugas sudah dikerjakan"}</p></div>
+          <button data-page="tugas">Lihat semua &#8594;</button>
+        </div>
+        ${
+          pendingTasks
+            .slice(0, 4)
+            .map(
+              (task) =>
+                `<button class="task-row task-row-button" data-task="${escapeHtml(task.id)}"><span class="task-icon">${escapeHtml(task.icon)}</span><span class="task-text"><b>${escapeHtml(task.title)}</b><small>${escapeHtml(task.meta)}</small></span><span class="task-status">Kerjakan &#8594;</span></button>`,
+            )
+            .join("") ||
+          '<p class="empty-note">Belum ada tugas baru dari kelasmu.</p>'
+        }
+      </section>
+      <section class="panel student-home-tip">
+        <div class="quote-label">&#10022; &nbsp; PENGINGAT BELAJAR</div>
+        <blockquote>Belajar sedikit demi sedikit, lalu amalkan ilmunya dalam kebaikan.</blockquote>
+        <button class="outline-button" data-page="materi">Buka materi belajar &#8594;</button>
+      </section>
+    </div>`;
 }
 function studentCourseIds() {
   return new Set(
@@ -219,19 +262,41 @@ function studentCourseIds() {
       : classGroups.map((group) => String(group.courseId)),
   );
 }
-function studentTasks() {
-  const visible = isTeacher
+function studentTasksForJoinedClasses() {
+  return isTeacher
     ? tasks
     : tasks.filter((task) =>
         classGroups.some(
           (group) => Number(group.id) === Number(task.classGroupId),
         ),
       );
+}
+function studentTasks() {
+  const visible = studentTasksForJoinedClasses();
   return activeClassGroup
     ? visible.filter(
         (task) => Number(task.classGroupId) === Number(activeClassGroup.id),
       )
     : visible;
+}
+function studentCompletedLessonCount() {
+  return completedLessons.filter((index) => {
+    const lesson = lessons[index];
+    return studentCanSeeLesson(lesson);
+  }).length;
+}
+function studentCanSeeLesson(lesson, groupScope = null) {
+  if (isTeacher) return true;
+  if (!Array.isArray(lesson)) return false;
+  const classGroupId = Number(lesson[6]);
+  const group = classGroups.find(
+    (item) => Number(item.id) === classGroupId,
+  );
+  return Boolean(
+    group &&
+      String(group.courseId) === String(lesson[3]) &&
+      (!groupScope || Number(groupScope.id) === classGroupId),
+  );
 }
 function assignmentMeta(task) {
   if (task.due) return `Dikumpulkan ${task.due}`;
@@ -406,8 +471,11 @@ function assignmentPage() {
 function lessonPage() {
   const visibleLessons = lessons
     .map((lesson, index) => ({ lesson, index }))
-    .filter(
-      ({ lesson }) => isTeacher || studentCourseIds().has(String(lesson[3])),
+    .filter(({ lesson }) =>
+      studentCanSeeLesson(
+        lesson,
+        currentPage === "kelas" ? activeClassGroup : null,
+      ),
     );
   return `<div class="page-head"><div><div class="eyebrow">PERPUSTAKAAN DIGITAL</div><h1 class="page-title">Materi belajar</h1><p class="page-subtitle">${isTeacher ? "Kelola dan perbarui materi yang dipelajari murid." : "Materi dari kelas yang kamu ikuti, tersusun agar mudah dilanjutkan."}</p></div>${isTeacher ? '<button class="primary-button" id="addLesson">&#43; Tambah materi</button>' : ""}</div>${!isTeacher && !classGroups.length ? '<section class="panel student-empty-classes"><b>Materi kelasmu akan muncul di sini</b><p>Gabung kelas menggunakan kode dari guru terlebih dahulu.</p><button class="outline-button" data-page="kelas">Masuk kelas &#8594;</button></section>' : ""}<div class="lesson-list">${visibleLessons.map(({ lesson: l, index: i }) => `<article class="lesson" data-course="${escapeHtml(l[3])}"><div class="lesson-number">${String(i + 1).padStart(2, "0")}</div><div class="lesson-copy"><b>${escapeHtml(l[0])}</b><small>${escapeHtml(l[2])} &middot; ${escapeHtml(l[1])}</small></div>${isTeacher ? `<button class="outline-button" data-editlesson="${i}">Ubah</button><button class="content-delete-button" data-delete-lesson="${i}">Hapus</button>` : ""}<button class="outline-button" data-lesson="${i}">${isTeacher ? "Pratinjau" : "Buka materi"} &#8594;</button></article>`).join("") || '<p class="empty-note">Belum ada materi untuk kelas yang kamu ikuti.</p>'}</div>`;
 }
@@ -449,6 +517,8 @@ function showClassGroup(groupId, tab = "materi") {
   const active = tabs.some(([key]) => key === tab) ? tab : "materi";
   activeClassGroup = group;
   activeClassTab = active;
+  currentPage = "kelas";
+  currentCourseId = null;
   const names = {
     materi: "Materi belajar",
     tugas: "Tugas & kuis",
@@ -459,8 +529,6 @@ function showClassGroup(groupId, tab = "materi") {
   const renderer = renderers[active];
   const classInfoKey = `class_${group.id}_informasi`;
   page.innerHTML = `<div class="page-head"><div><button type="button" class="text-link back-link" data-page="kelas">&#8592; Kembali ke kelas saya</button><div class="eyebrow">${escapeHtml(group.courseTitle).toUpperCase()}</div><h1 class="page-title">${escapeHtml(group.className)}</h1><p class="page-subtitle">${isTeacher ? "Kelola materi dan kegiatan untuk kelas ini." : "Materi dan kegiatan belajar kelas ini."}</p></div>${isTeacher ? `<span class="date-chip">Kode: ${escapeHtml(group.joinCode)}</span>` : ""}</div><nav class="class-section-tabs" aria-label="Menu kelas">${tabs.map(([key, label]) => `<button type="button" class="class-section-tab ${key === active ? "active" : ""}" data-class-tab="${key}" data-class-id="${group.id}">${label}</button>`).join("")}</nav><div id="classTabContent">${active === "informasi" ? `${informationPage()}${pageContentSection(classInfoKey)}` : active === "siswa" ? classMembersPanel(group) : renderer ? renderer() : ""}</div>`;
-  currentPage = "kelas";
-  currentCourseId = null;
   document.getElementById("crumb").textContent = names[active];
   document
     .querySelectorAll(".nav-item[data-page]")
@@ -625,7 +693,7 @@ function showClass(id) {
   if (!course) return;
   const courseLessons = lessons
     .map((item, index) => ({ item, index }))
-    .filter((x) => x.item[3] === id);
+    .filter((x) => x.item[3] === id && studentCanSeeLesson(x.item));
   const courseTasks = tasks.filter(
     (t) => Number(t.classGroupId) === Number(activeClassGroup?.id),
   );
@@ -1574,14 +1642,10 @@ document.addEventListener("click", async (e) => {
       const result = await response.json();
       if (!response.ok || !result.ok)
         throw new Error(result.message || "Belum dapat masuk kelas.");
-      if (!classGroups.some((group) => group.id === result.classGroup.id))
-        classGroups.unshift(result.classGroup);
-      render("beranda");
-      notify(
-        result.alreadyJoined
-          ? `Kamu sudah tergabung di ${result.classGroup.className}.`
-          : `Berhasil masuk kelas ${result.classGroup.className}.`,
-      );
+      const url = new URL(window.location.href);
+      url.searchParams.set("classJoined", String(result.classGroup.id));
+      url.searchParams.set("alreadyJoined", result.alreadyJoined ? "1" : "0");
+      window.location.assign(url);
     } catch (error) {
       notify(error.message);
       joinClass.disabled = false;
@@ -1786,6 +1850,23 @@ document
     document.querySelector(".sidebar").classList.toggle("open"),
   );
 render("beranda");
+const joinedClassUrl = new URL(window.location.href);
+const joinedClassId = Number(joinedClassUrl.searchParams.get("classJoined"));
+if (joinedClassUrl.searchParams.has("classJoined")) {
+  const joinedClass = classGroups.find(
+    (group) => Number(group.id) === joinedClassId,
+  );
+  if (joinedClass) {
+    notify(
+      joinedClassUrl.searchParams.get("alreadyJoined") === "1"
+        ? `Kamu sudah tergabung di ${joinedClass.className}.`
+        : `Berhasil masuk kelas ${joinedClass.className}.`,
+    );
+  }
+  joinedClassUrl.searchParams.delete("classJoined");
+  joinedClassUrl.searchParams.delete("alreadyJoined");
+  window.history.replaceState(null, "", joinedClassUrl);
+}
 
 document.addEventListener("click", (e) => {
   const classCard = e.target.closest("[data-classopen]");
@@ -2247,9 +2328,7 @@ names.progress = "Progres belajar";
 progressPage = function () {
   const visibleLessons = lessons
     .map((lesson, index) => ({ lesson, index }))
-    .filter(
-      ({ lesson }) => isTeacher || studentCourseIds().has(String(lesson[3])),
-    );
+    .filter(({ lesson }) => studentCanSeeLesson(lesson));
   const relevantCompleted = visibleLessons.filter((item) =>
     completedLessons.includes(item.index),
   ).length;
