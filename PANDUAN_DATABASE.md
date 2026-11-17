@@ -1,19 +1,26 @@
 # Database MutqinSpace
 
-MutqinSpace memakai MySQL/MariaDB untuk akun siswa dan guru, kelas, keanggotaan kelas, materi, tugas, kuis, dan perpustakaan digital. File PDF, foto, dan video disimpan sebagai file di `storage/material_uploads`; MySQL menyimpan nama file, jenis file, ukuran, serta keterkaitannya dengan materi atau tugas. Lampiran foto/video jawaban siswa juga disimpan di folder tersebut, sedangkan catatan pengumpulan berada di `storage/submissions.json`. File di folder unggahan tidak dapat diakses langsung; aplikasi mengirimkannya lewat endpoint yang memeriksa sesi pengguna.
+MutqinSpace memakai MySQL/MariaDB untuk akun siswa dan guru, kelas, keanggotaan kelas, materi, tugas, kuis, pengumpulan, dan perpustakaan digital. File PDF, foto, dan video disimpan sebagai file di `storage/material_uploads`; MySQL menyimpan nama file, jenis file, ukuran, serta keterkaitannya. Pengumpulan dan riwayat revisinya tersimpan di tabel `submissions` dan `submission_history`. File di folder unggahan tidak dapat diakses langsung; aplikasi mengirimkannya lewat endpoint yang memeriksa sesi serta keanggotaan kelas.
 
 ## Menyiapkan database di XAMPP
 
 1. Jalankan **Apache** dan **MySQL** dari XAMPP Control Panel.
 2. Buka `http://localhost/phpmyadmin`.
 3. Pilih **Import**, lalu impor file `database.sql`.
-4. Dari PowerShell di folder proyek, jalankan:
+4. Dari PowerShell di folder proyek, jalankan migrasi awal:
 
    ```powershell
    C:\xampp\php\php.exe migrate_to_mysql.php
    ```
 
-   Migrasi awal menyalin akun, materi, dan tugas/kuis lama dari file JSON ke database. Jalankan sekali saat menyiapkan database; jangan jalankan ulang setelah data dikelola di aplikasi karena file JSON sumber tidak ikut diperbarui. Jika database sebelumnya sudah dibuat, impor `database.sql` lagi setelah pembaruan untuk menambahkan tabel kelas dan `library_items` (perintah `CREATE TABLE IF NOT EXISTS` aman dijalankan ulang). Untuk mengaktifkan profil siswa yang menyimpan NISN, buka tab **SQL** di phpMyAdmin lalu jalankan sekali: `ALTER TABLE users ADD COLUMN nisn VARCHAR(30) NOT NULL DEFAULT '' AFTER class_name;`. Skema baru dari `database.sql` sudah menyertakan kolom ini. Kolom `exam_mode` untuk ujian mode fokus dibuat otomatis oleh `assignment_manage.php` ketika guru membuka pengelolaan tugas; skema baru juga sudah menyertakannya.
+   Migrasi awal menyalin akun, materi, dan tugas/kuis lama dari file JSON ke database. Jalankan sekali saat menyiapkan database; jangan jalankan ulang setelah data dikelola di aplikasi karena file JSON sumber tidak ikut diperbarui.
+5. Jika data pengumpulan lama masih ada di `storage/submissions.json`, jalankan migrasi pengumpulan satu kali:
+
+   ```powershell
+   C:\xampp\php\php.exe migrate_submissions.php
+   ```
+
+   Migrasi pengumpulan aman dijalankan ulang: data yang sudah ada di database tidak ditimpa. Untuk database lama, impor kembali `database.sql` terlebih dahulu agar tabel `submissions` dan `submission_history` dibuat. Perintah `CREATE TABLE IF NOT EXISTS` aman dijalankan ulang.
 
 Siswa baru dapat memilih **Buat akun siswa** dari halaman masuk dan mengisi nama lengkap, email, NISN 10 digit, serta kata sandi minimal 8 karakter. Akun tersimpan sebagai siswa; saat masuk, siswa dapat menggunakan NISN, nama lengkap, atau email.
 
@@ -43,7 +50,11 @@ Akun demo yang ikut dimigrasikan:
 - Siswa: `aulia` / `siswa123`
 - Guru: `guru` / `admin123`
 
-Data progres dan jawaban siswa masih disimpan di `storage/progress.json` dan `storage/submissions.json`.
+Data progres belajar masih disimpan di `storage/progress.json`. `storage/submissions.json` hanya menjadi sumber migrasi untuk pengumpulan lama.
+
+## Pengumpulan dan penilaian
+
+Guru dapat melihat siswa yang belum mengumpulkan, pengumpulan terlambat, dan tugas esai yang menunggu penilaian. Penilaian esai dan soal campuran dapat berisi nilai 0–100 serta umpan balik; hasilnya tampil kepada siswa. Siswa dapat memperbarui tugas esai sampai tenggat. Kuis dan soal campuran terkunci setelah dikirim. Setiap revisi esai menyimpan versi serta nilai/umpan balik sebelumnya.
 
 
 ## Perpustakaan digital

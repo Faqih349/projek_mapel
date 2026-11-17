@@ -41,20 +41,33 @@ $action = (string)($payload['action'] ?? 'save');
 $id = (string)($payload['id'] ?? '');
 $index = null;
 foreach ($catalog as $key => $item) if (($item['id'] ?? '') === $id && $id !== '') { $index = $key; break; }
-$submissionsPath = __DIR__ . '/storage/submissions.json';
-$submissions = json_decode((string)file_get_contents($submissionsPath), true);
-if (!is_array($submissions)) $submissions = [];
 $uploadDir = __DIR__ . '/storage/material_uploads';
 $validStoredFile = static fn($file): bool => is_string($file) && preg_match('/^[a-f0-9]{32}\.(pdf|jpg|png|webp|gif|mp4|webm|ogv)$/', $file) === 1;
+$submissionFilesToDelete = [];
+$rememberSubmissionFiles = static function (string $encoded) use (&$submissionFilesToDelete, $validStoredFile): void {
+    $submission = json_decode($encoded, true);
+    if (!is_array($submission)) return;
+    $files = is_array($submission['attachments'] ?? null) ? $submission['attachments'] : [];
+    if (is_array($submission['attachment'] ?? null)) $files[] = $submission['attachment'];
+    foreach ($files as $file) if ($validStoredFile($file['file'] ?? null)) $submissionFilesToDelete[$file['file']] = true;
+};
+$collectSubmissionFiles = static function (PDO $db, string $taskId) use ($rememberSubmissionFiles): void {
+    $current = $db->prepare('SELECT submission_data FROM submissions WHERE task_id=:task_id');
+    $current->execute(['task_id'=>$taskId]);
+    foreach ($current->fetchAll(PDO::FETCH_COLUMN) as $encoded) $rememberSubmissionFiles((string)$encoded);
+    $history = $db->prepare('SELECT submission_data FROM submission_history WHERE task_id=:task_id');
+    $history->execute(['task_id'=>$taskId]);
+    foreach ($history->fetchAll(PDO::FETCH_COLUMN) as $encoded) $rememberSubmissionFiles((string)$encoded);
+};
 $oldAttachment = null;
 $newUploadName = null;
+$resetSubmissionRecords = false;
 
 if ($action === 'delete') {
     if ($index === null) assignmentManageReply(404, ['ok'=>false,'message'=>'Tugas yang akan dihapus tidak ditemukan.']);
     $oldAttachment = $catalog[$index]['attachment'] ?? null;
+    $collectSubmissionFiles($db, $id);
     array_splice($catalog, $index, 1);
-    foreach ($submissions as &$userSubmissions) if (is_array($userSubmissions)) unset($userSubmissions[$id]);
-    unset($userSubmissions);
 } elseif ($action === 'save') {
     $courses = [
         'quran'=>'Al-Qur’an dan Hadis', 'akhlak'=>'Akidah Akhlak',
@@ -141,15 +154,14 @@ if ($action === 'delete') {
         $old = $catalog[$index];
         $catalog[$index] = $assignment;
         if (($old['type'] ?? '') !== $type || ($old['questions'] ?? []) !== $questions) {
-            foreach ($submissions as &$userSubmissions) if (is_array($userSubmissions)) unset($userSubmissions[$id]);
-            unset($userSubmissions);
+            $collectSubmissionFiles($db, $id);
+            $resetSubmissionRecords = true;
         }
     }
 } else {
     assignmentManageReply(422, ['ok'=>false,'message'=>'Aksi tidak dikenal.']);
 }
 
-$encodedSubmissions = json_encode($submissions, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE);
 try {
     if ($action === 'delete') {
         $db->prepare('DELETE FROM assignments WHERE task_id=:id')->execute(['id'=>$id]);
@@ -157,6 +169,7 @@ try {
         $asset = $assignment['attachment'] ?? [];
         $statement = $db->prepare('INSERT INTO assignments (task_id,course_id,class_group_id,course_title,type,exam_mode,icon,title,due,description,prompt,questions,file_name,file_original_name,file_mime,file_size) VALUES (:task_id,:course_id,:class_group_id,:course_title,:type,:exam_mode,:icon,:title,:due,:description,:prompt,:questions,:file_name,:file_original_name,:file_mime,:file_size) ON DUPLICATE KEY UPDATE course_id=VALUES(course_id),class_group_id=VALUES(class_group_id),course_title=VALUES(course_title),type=VALUES(type),exam_mode=VALUES(exam_mode),icon=VALUES(icon),title=VALUES(title),due=VALUES(due),description=VALUES(description),prompt=VALUES(prompt),questions=VALUES(questions),file_name=VALUES(file_name),file_original_name=VALUES(file_original_name),file_mime=VALUES(file_mime),file_size=VALUES(file_size)');
         $statement->execute(['task_id'=>$assignment['id'],'course_id'=>$assignment['courseId'],'class_group_id'=>$assignment['classGroupId'],'course_title'=>$assignment['courseTitle'],'type'=>$assignment['type'],'exam_mode'=>$assignment['examMode']?1:0,'icon'=>$assignment['icon'],'title'=>$assignment['title'],'due'=>$assignment['due'],'description'=>$assignment['description'],'prompt'=>$assignment['prompt'],'questions'=>json_encode($assignment['questions'], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),'file_name'=>$asset['file'] ?? null,'file_original_name'=>$asset['name'] ?? null,'file_mime'=>$asset['mime'] ?? null,'file_size'=>$asset['size'] ?? null]);
+        if ($resetSubmissionRecords) $db->prepare('DELETE FROM submissions WHERE task_id=:id')->execute(['id'=>$id]);
     }
 } catch (Throwable $exception) {
     if ($newUploadName !== null) @unlink($uploadDir . '/' . $newUploadName);
@@ -166,7 +179,7 @@ try {
 if ($action === 'delete' || $newUploadName !== null || (($payload['removeAttachment'] ?? '') === '1')) {
     if (is_array($oldAttachment) && $validStoredFile($oldAttachment['file'] ?? null)) @unlink($uploadDir . '/' . $oldAttachment['file']);
 }
-if ($encodedSubmissions === false || file_put_contents($submissionsPath, $encodedSubmissions, LOCK_EX) === false) assignmentManageReply(500, ['ok'=>false,'message'=>'Tugas tersimpan, tetapi data pengumpulan lama gagal diperbarui.']);
+foreach (array_keys($submissionFilesToDelete) as $file) @unlink($uploadDir . '/' . $file);
 
 $emailNotice = null;
 if ($action === 'save' && $index === null) {

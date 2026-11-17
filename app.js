@@ -466,7 +466,14 @@ function openLibraryEditor() {
 }
 function assignmentPage() {
   const visibleTasks = studentTasks();
-  return `<div class="page-head"><div><div class="eyebrow">KEGIATAN BELAJAR</div><h1 class="page-title">Tugas & kuis</h1><p class="page-subtitle">${isTeacher ? "Buat tugas dan kuis, atur soal, lalu bagikan kepada murid." : "Semua tugas dari kelas yang kamu ikuti. Pilih status untuk menemukan kegiatan dengan cepat."}</p></div>${isTeacher ? '<button class="primary-button" id="addAssignment">&#43; Buat tugas atau kuis</button>' : `<div class="date-chip">${visibleTasks.filter((task) => !task.submitted).length} belum selesai</div>`}</div>${!isTeacher ? `<div class="filter-row" role="group" aria-label="Filter tugas"><button class="filter-pill active" data-filter="all">Semua <span>${visibleTasks.length}</span></button><button class="filter-pill" data-filter="due">Belum selesai <span>${visibleTasks.filter((task) => !task.submitted).length}</span></button><button class="filter-pill" data-filter="done">Sudah dikerjakan <span>${visibleTasks.filter((task) => task.submitted).length}</span></button></div>${!classGroups.length ? '<section class="panel student-empty-classes"><b>Tugas akan tampil setelah kamu masuk kelas</b><p>Gunakan kode undangan yang diberikan guru.</p><button class="outline-button" data-page="kelas">Masuk kelas &#8594;</button></section>' : ""}` : ""}<div class="assignment-list">${visibleTasks.map((t) => `<article class="assignment" data-kind="${t.submitted ? "done" : "due"}"><div class="task-icon">${escapeHtml(t.icon)}</div><div class="assignment-info"><b>${escapeHtml(t.title)}</b><small>${escapeHtml(assignmentMeta(t))} &middot; ${t.type === "quiz" ? "Kuis pilihan ganda" : "Tugas esai"}</small></div>${isTeacher ? `<div class="teacher-task-actions"><button type="button" class="outline-button" data-view-submissions="${escapeHtml(t.id)}">Pengumpulan (${(t.submissions || []).length})</button><button type="button" class="outline-button" data-edit-assignment="${escapeHtml(t.id)}">Ubah</button><button type="button" class="content-delete-button" data-delete-assignment="${escapeHtml(t.id)}">Hapus</button></div>` : `<span class="task-status ${t.submitted ? "done" : ""}">${escapeHtml(t.status)}</span><button type="button" data-task="${escapeHtml(t.id)}">${t.submitted ? "Lihat hasil" : "Kerjakan"} &#8594;</button>`}</article>`).join("") || `<div class="empty-note">${isTeacher ? "Belum ada tugas. Buat tugas atau kuis pertama untuk murid." : "Belum ada tugas atau kuis dari kelasmu."}</div>`}<p class="empty-note assignment-filter-empty" hidden>Tidak ada tugas pada filter ini.</p></div>`;
+  const teacherFilters = isTeacher
+    ? `<div class="filter-row assignment-teacher-filters"><label>Kelas <select class="editor-input" id="assignmentClassFilter"><option value="all">Semua kelas</option>${classGroups.map((group) => `<option value="${Number(group.id)}">${escapeHtml(group.className)}</option>`).join("")}</select></label><label>Status <select class="editor-input" id="assignmentStatusFilter"><option value="all">Semua status</option><option value="pending">Ada yang belum mengumpulkan</option><option value="review">Perlu dinilai</option><option value="late">Ada yang terlambat</option></select></label></div>`
+    : "";
+  const assignmentRows = visibleTasks.map((task) => {
+    const stats = task.submissionStats || {};
+    return `<article class="assignment" data-kind="${task.submitted ? "done" : "due"}" ${isTeacher ? `data-classid="${Number(task.classGroupId)}" data-pending="${stats.pending || 0}" data-review="${stats.needsReview || 0}" data-late="${stats.late || 0}"` : ""}><div class="task-icon">${escapeHtml(task.icon)}</div><div class="assignment-info"><b>${escapeHtml(task.title)}</b><small>${escapeHtml(assignmentMeta(task))} &middot; ${task.type === "quiz" ? "Kuis pilihan ganda" : task.type === "essay_quiz" ? "Soal pilihan ganda + esai" : "Tugas esai"}</small></div>${isTeacher ? `<div class="teacher-task-actions"><button type="button" class="outline-button" data-view-submissions="${escapeHtml(task.id)}">Pengumpulan (${stats.submitted || 0}/${stats.total || 0})${stats.needsReview ? ` · ${stats.needsReview} perlu dinilai` : ""}</button><button type="button" class="outline-button" data-edit-assignment="${escapeHtml(task.id)}">Ubah</button><button type="button" class="content-delete-button" data-delete-assignment="${escapeHtml(task.id)}">Hapus</button></div>` : `<span class="task-status ${task.submitted ? "done" : ""}">${escapeHtml(task.status)}</span><button type="button" data-task="${escapeHtml(task.id)}">${task.submitted ? "Lihat hasil" : "Kerjakan"} &#8594;</button>`}</article>`;
+  }).join("");
+  return `<div class="page-head"><div><div class="eyebrow">KEGIATAN BELAJAR</div><h1 class="page-title">Tugas & kuis</h1><p class="page-subtitle">${isTeacher ? "Buat tugas dan kuis, pantau pengumpulan, lalu beri nilai dan umpan balik." : "Semua tugas dari kelas yang kamu ikuti. Pilih status untuk menemukan kegiatan dengan cepat."}</p></div>${isTeacher ? '<button class="primary-button" id="addAssignment">&#43; Buat tugas atau kuis</button>' : `<div class="date-chip">${visibleTasks.filter((task) => !task.submitted).length} belum selesai</div>`}</div>${teacherFilters}${!isTeacher ? `<div class="filter-row" role="group" aria-label="Filter tugas"><button class="filter-pill active" data-filter="all">Semua <span>${visibleTasks.length}</span></button><button class="filter-pill" data-filter="due">Belum selesai <span>${visibleTasks.filter((task) => !task.submitted).length}</span></button><button class="filter-pill" data-filter="done">Sudah dikerjakan <span>${visibleTasks.filter((task) => task.submitted).length}</span></button></div>${!classGroups.length ? '<section class="panel student-empty-classes"><b>Tugas akan tampil setelah kamu masuk kelas</b><p>Gunakan kode undangan yang diberikan guru.</p><button class="outline-button" data-page="kelas">Masuk kelas &#8594;</button></section>' : ""}` : ""}<div class="assignment-list">${assignmentRows || `<div class="empty-note">${isTeacher ? "Belum ada tugas. Buat tugas atau kuis pertama untuk murid." : "Belum ada tugas atau kuis dari kelasmu."}</div>`}<p class="empty-note assignment-filter-empty" hidden>Tidak ada tugas pada filter ini.</p></div>`;
 }
 function lessonPage() {
   const visibleLessons = lessons
@@ -710,14 +717,18 @@ function openTaskSubmissions(taskId) {
   const task = tasks.find((item) => item.id === taskId);
   if (!task) return;
   const submissions = Array.isArray(task.submissions) ? task.submissions : [];
-  const rows = submissions
-    .map(
-      (entry) =>
-        `<article class="submission-card submission-list-row"><div class="submission-student"><span class="top-avatar">${escapeHtml(entry.name.slice(0, 1))}</span><div><b>${escapeHtml(entry.name)}</b><small>${escapeHtml(entry.className || "Siswa")}</small></div><button type="button" class="outline-button" data-view-answer="${escapeHtml(task.id)}" data-student-username="${escapeHtml(entry.username)}">Lihat</button></div></article>`,
-    )
-    .join("");
+  const entries = Array.isArray(task.roster) && task.roster.length
+    ? task.roster.map((student) => ({ ...student, submission: submissions.find((item) => item.username === student.username) || null }))
+    : submissions.map((submission) => ({ ...submission, submission }));
+  const rows = entries.map((entry) => {
+    const submission = entry.submission;
+    const late = submission?.submittedAt && new Date(submission.submittedAt) > new Date(task.due);
+    const status = !submission ? "Belum mengumpulkan" : late ? "Terlambat" : entry.needsReview ? "Perlu dinilai" : "Sudah dinilai";
+    return `<article class="submission-card submission-list-row"><div class="submission-student"><span class="top-avatar">${escapeHtml(entry.name.slice(0, 1))}</span><div><b>${escapeHtml(entry.name)}</b><small>${escapeHtml(entry.className || "Siswa")} · ${escapeHtml(status)}${submission?.score !== null && submission?.score !== undefined ? ` · ${Number(submission.score)}/100` : ""}</small></div>${submission ? `<button type="button" class="outline-button" data-view-answer="${escapeHtml(task.id)}" data-student-username="${escapeHtml(entry.username)}">Lihat</button>` : ""}</div></article>`;
+  }).join("");
+  const stats = task.submissionStats || { submitted: submissions.length, total: entries.length, pending: 0, late: 0, needsReview: 0 };
   document.getElementById("dialogContent").innerHTML =
-    `<div class="eyebrow">PENGUMPULAN ${task.type === "quiz" ? "KUIS" : "TUGAS"}</div><h2>${escapeHtml(task.title)}</h2><p>${submissions.length} siswa sudah mengerjakan.</p>${rows || '<p class="empty-note">Belum ada siswa yang mengumpulkan jawaban.</p>'}`;
+    `<div class="eyebrow">PENGUMPULAN ${task.type === "quiz" ? "KUIS" : "TUGAS"}</div><h2>${escapeHtml(task.title)}</h2><div class="submission-summary"><span>${stats.submitted}/${stats.total} terkumpul</span><span>${stats.pending} belum</span><span>${stats.late} terlambat</span><span>${stats.needsReview} perlu dinilai</span></div>${rows || '<p class="empty-note">Belum ada siswa di kelas tugas ini.</p>'}`;
   document.getElementById("lessonDialog").showModal();
 }
 function openSubmissionAnswer(taskId, username) {
@@ -729,9 +740,10 @@ function openSubmissionAnswer(taskId, username) {
     ? new Date(entry.submittedAt).toLocaleString("id-ID")
     : "Waktu pengumpulan tidak tersedia";
   const answer =
-    task.type === "quiz"
+    ["quiz", "essay_quiz"].includes(task.type)
       ? task.questions
           .map((question, index) => {
+            if (question.kind === "essay") return `<div class="submission-answer"><b>${index + 1}. ${escapeHtml(question.question)}</b><p class="submission-essay">${escapeHtml(entry.essayResponses?.[index] || "Tidak dijawab").replace(/\n/g, "<br>")}</p></div>`;
             const choice = Number(entry.answers?.[index]);
             const chosen = Number.isInteger(choice)
               ? question.options[choice]
@@ -741,11 +753,22 @@ function openSubmissionAnswer(taskId, username) {
           })
           .join("")
       : `<div class="submission-answer"><b>Jawaban esai</b><p class="submission-essay">${escapeHtml(entry.response || "Tidak ada jawaban teks").replace(/\n/g, "<br>")}</p></div>`;
-  const attachment = entry.attachment?.file
-    ? `<div class="submission-answer"><b>Lampiran tugas</b><p><a class="material-file-link" href="submission_file.php?task=${encodeURIComponent(task.id)}&username=${encodeURIComponent(entry.username)}" target="_blank" rel="noopener">Lihat ${escapeHtml(entry.attachment.name || "foto/video")}</a></p></div>`
+  const files = Array.isArray(entry.attachments) ? entry.attachments : entry.attachment ? [entry.attachment] : [];
+  const attachment = files.length
+    ? `<div class="submission-answer"><b>Lampiran tugas</b>${files.map((file, index) => `<p><a class="material-file-link" href="submission_file.php?task=${encodeURIComponent(task.id)}&username=${encodeURIComponent(entry.username)}&index=${index}" target="_blank" rel="noopener">Lihat ${escapeHtml(file.name || "foto/video")}</a></p>`).join("")}</div>`
+    : "";
+  const history = (entry.history || []).map((version) => {
+    const historicalFiles = Array.isArray(version.attachments) ? version.attachments : version.attachment ? [version.attachment] : [];
+    return `<article class="submission-history-item"><b>Versi ${Number(version.revision)} · ${escapeHtml(new Date(version.submittedAt).toLocaleString("id-ID"))}</b>${version.score !== null && version.score !== undefined ? `<small>Nilai: ${Number(version.score)}/100</small>` : ""}${version.feedback ? `<p>Umpan balik: ${escapeHtml(version.feedback)}</p>` : ""}${version.response ? `<p>${escapeHtml(version.response)}</p>` : ""}${historicalFiles.map((file, index) => `<a class="material-file-link" href="submission_file.php?task=${encodeURIComponent(task.id)}&username=${encodeURIComponent(entry.username)}&revision=${Number(version.revision)}&index=${index}" target="_blank" rel="noopener">Lampiran: ${escapeHtml(file.name || "foto/video")}</a>`).join("<br>")}</article>`;
+  }).join("");
+  const grading = ["essay", "essay_quiz"].includes(task.type)
+    ? `<div class="submission-grade-form" data-grade-task="${escapeHtml(task.id)}" data-grade-student="${escapeHtml(entry.username)}"><label class="editor-label">Nilai (0–100)</label><input class="editor-input" type="number" min="0" max="100" step="0.01" name="score" value="${entry.gradedAt ? Number(entry.score) : ""}" required><label class="editor-label">Umpan balik</label><textarea class="editor-input editor-textarea" name="feedback" maxlength="3000" placeholder="Tulis catatan untuk siswa...">${escapeHtml(entry.feedback || "")}</textarea><button type="button" class="primary-button" data-save-submission-grade>Simpan penilaian</button></div>`
+    : "";
+  const score = entry.score !== null && entry.score !== undefined
+    ? `<div class="quiz-score">${entry.gradedAt || task.type === "quiz" ? "Nilai" : "Nilai sementara"}: <b>${Number(entry.score)}/100</b></div>`
     : "";
   document.getElementById("dialogContent").innerHTML =
-    `<button type="button" class="text-link" data-back-submissions="${escapeHtml(task.id)}">&#8592; Kembali ke daftar pengumpulan</button><div class="eyebrow">JAWABAN SISWA</div><h2>${escapeHtml(entry.name)}</h2><p>${escapeHtml(entry.className || "Siswa")} &middot; ${escapeHtml(date)}</p>${task.type === "quiz" ? `<div class="quiz-score">Nilai: <b>${Number(entry.score) || 0}/${task.questions.length}</b></div>` : ""}${answer}${attachment}`;
+    `<button type="button" class="text-link" data-back-submissions="${escapeHtml(task.id)}">&#8592; Kembali ke daftar pengumpulan</button><div class="eyebrow">JAWABAN SISWA · VERSI ${Number(entry.revision || 1)}</div><h2>${escapeHtml(entry.name)}</h2><p>${escapeHtml(entry.className || "Siswa")} &middot; ${escapeHtml(date)}</p>${score}${answer}${attachment}${grading}${history ? `<section class="submission-history"><h3>Riwayat pengumpulan</h3>${history}</section>` : ""}`;
 }
 function requestExamFullscreen() {
   if (!document.fullscreenElement && document.documentElement.requestFullscreen)
@@ -769,20 +792,27 @@ function openAssignment(id) {
   const task = tasks.find((t) => t.id === id);
   if (!task) return;
   const existing = task.submission || {};
+  const currentFiles = Array.isArray(existing.attachments)
+    ? existing.attachments
+    : existing.attachment?.file
+      ? [existing.attachment]
+      : [];
+  const submissionClosed = Number.isFinite(new Date(task.due).getTime()) && Date.now() > new Date(task.due).getTime();
   const locked = task.type === "quiz" && task.submitted;
+  const cannotEdit = locked || submissionClosed;
   const body =
     task.type === "quiz"
       ? task.questions
           .map(
             (q, i) =>
-              `<fieldset class="quiz-question" ${locked ? "disabled" : ""}><legend>${i + 1}. ${escapeHtml(q.question)}</legend>${q.options.map((option, j) => `<label class="quiz-option"><input type="radio" name="answer-${i}" value="${j}" ${existing.answers?.[i] === j ? "checked" : ""} ${locked ? "disabled" : ""}><span>${escapeHtml(option)}</span></label>`).join("")}</fieldset>`,
+              `<fieldset class="quiz-question" ${cannotEdit ? "disabled" : ""}><legend>${i + 1}. ${escapeHtml(q.question)}</legend>${q.options.map((option, j) => `<label class="quiz-option"><input type="radio" name="answer-${i}" value="${j}" ${existing.answers?.[i] === j ? "checked" : ""} ${cannotEdit ? "disabled" : ""}><span>${escapeHtml(option)}</span></label>`).join("")}</fieldset>`,
           )
           .join("")
-      : `<fieldset class="essay-answer-choice"><legend>Pilih satu cara mengumpulkan jawaban</legend><label><input type="radio" name="essayAnswerMode" value="text" ${existing.attachment?.file && !existing.response ? "" : "checked"}> Tulis jawaban</label><label><input type="radio" name="essayAnswerMode" value="photo" ${existing.attachment?.file && !existing.response ? "checked" : ""}> Unggah foto/video</label></fieldset><div id="essayTextAnswer" ${existing.attachment?.file && !existing.response ? "hidden" : ""}><label class="editor-label" for="assignmentResponse">Jawaban teks</label><textarea class="editor-input editor-textarea" id="assignmentResponse" maxlength="5000" placeholder="Tuliskan jawabanmu di sini...">${escapeHtml(existing.response || "")}</textarea></div><div id="essayPhotoAnswer" ${existing.attachment?.file && !existing.response ? "" : "hidden"}><label class="editor-label" for="assignmentSubmissionFile">Pilih foto atau video (maks. 35 MB)</label><input class="editor-input material-file-input" id="assignmentSubmissionFile" type="file" accept="image/*,video/*">${existing.attachment?.file ? `<p class="account-help">Lampiran tersimpan: ${escapeHtml(existing.attachment.name || "foto/video")}</p>` : ""}</div>`;
-  activeExamTaskId = task.examMode && !task.submitted ? task.id : null;
+      : `<fieldset class="essay-answer-choice" ${cannotEdit ? "disabled" : ""}><legend>Pilih satu cara mengumpulkan jawaban</legend><label><input type="radio" name="essayAnswerMode" value="text" ${currentFiles.length && !existing.response ? "" : "checked"} ${cannotEdit ? "disabled" : ""}> Tulis jawaban</label><label><input type="radio" name="essayAnswerMode" value="photo" ${currentFiles.length && !existing.response ? "checked" : ""} ${cannotEdit ? "disabled" : ""}> Unggah foto/video</label></fieldset><div id="essayTextAnswer" ${currentFiles.length && !existing.response ? "hidden" : ""}><label class="editor-label" for="assignmentResponse">Jawaban teks</label><textarea class="editor-input editor-textarea" id="assignmentResponse" maxlength="5000" placeholder="Tuliskan jawabanmu di sini..." ${cannotEdit ? "disabled" : ""}>${escapeHtml(existing.response || "")}</textarea></div><div id="essayPhotoAnswer" ${currentFiles.length && !existing.response ? "" : "hidden"}><label class="editor-label" for="assignmentSubmissionFile">Pilih foto atau video (maks. 8 file, masing-masing maks. 35 MB)</label><input class="editor-input material-file-input" id="assignmentSubmissionFile" type="file" accept="image/*,video/*" multiple ${cannotEdit ? "disabled" : ""}>${currentFiles.length ? `<p class="account-help">Lampiran tersimpan: ${currentFiles.map((file) => escapeHtml(file.name || "foto/video")).join(", ")}</p>` : ""}</div>`;
+  activeExamTaskId = task.examMode && !task.submitted && !submissionClosed ? task.id : null;
   examTabWasHidden = false;
   document.getElementById("dialogContent").innerHTML =
-    `<div class="eyebrow">${escapeHtml(task.courseTitle)} &middot; ${task.type === "quiz" ? "KUIS" : "TUGAS"}</div><h2>${escapeHtml(task.title)}</h2><p>${escapeHtml(task.description)}</p>${task.examMode && !task.submitted ? `<section class="exam-mode-notice"><b>Mode ujian aktif</b><p>Ujian berjalan dalam layar penuh. Jika kamu keluar layar penuh atau berpindah tab, akan muncul peringatan.</p><button type="button" class="outline-button" id="reenterExamFullscreen">Masuk layar penuh</button></section>` : ""}${locked ? `<div class="quiz-score">Jawaban sudah dikumpulkan dan dikunci. Nilai: <b>${task.score}/${task.questions.length}</b></div>` : ""}${body}${task.type === "essay" && existing.attachment?.file ? `<p class="account-help">Lampiran terakhir: <a href="submission_file.php?task=${encodeURIComponent(task.id)}" target="_blank" rel="noopener">Lihat lampiran</a></p>` : ""}${materialAttachmentMarkup(task.attachment)}${locked ? '<p class="account-help">Jawaban pilihan ganda tidak dapat diubah atau dikirim ulang.</p>' : `<button type="button" class="primary-button submit-assignment" id="submitAssignment" data-taskid="${escapeHtml(task.id)}">Kumpulkan jawaban</button>`}`;
+    `<div class="eyebrow">${escapeHtml(task.courseTitle)} &middot; ${task.type === "quiz" ? "KUIS" : "TUGAS"}</div><h2>${escapeHtml(task.title)}</h2><p>${escapeHtml(task.description)}</p>${task.examMode && !task.submitted ? `<section class="exam-mode-notice"><b>Mode ujian aktif</b><p>Ujian berjalan dalam layar penuh. Jika kamu keluar layar penuh atau berpindah tab, akan muncul peringatan.</p><button type="button" class="outline-button" id="reenterExamFullscreen">Masuk layar penuh</button></section>` : ""}${locked ? `<div class="quiz-score">Jawaban sudah dikumpulkan dan dikunci. Nilai: <b>${task.score}/100</b></div>` : ""}${task.submitted && ["essay","essay_quiz"].includes(task.type) ? `<section class="submission-feedback"><b>${existing.gradedAt ? `Nilai: ${Number(existing.score)}/100` : "Menunggu penilaian guru"}</b>${existing.feedback ? `<p>${escapeHtml(existing.feedback).replace(/\n/g, "<br>")}</p>` : ""}<small>Versi ${Number(existing.revision || 1)} · dikumpulkan ${existing.submittedAt ? escapeHtml(new Date(existing.submittedAt).toLocaleString("id-ID")) : ""}. Jawaban dapat diperbarui sampai tenggat.</small></section>` : ""}${submissionClosed && !task.submitted ? `<p class="account-help">Tenggat sudah lewat. Pengumpulan baru tidak dapat dikirim.</p>` : ""}${body}${task.type === "essay" && currentFiles.length ? `<div class="submission-answer"><b>Lampiran terakhir</b>${currentFiles.map((file, index) => `<p><a href="submission_file.php?task=${encodeURIComponent(task.id)}&index=${index}" target="_blank" rel="noopener">${escapeHtml(file.name || "Lihat lampiran")}</a></p>`).join("")}</div>` : ""}${["essay","essay_quiz"].includes(task.type) && Array.isArray(existing.history) && existing.history.length ? `<section class="submission-history"><h3>Riwayat pengumpulan</h3>${existing.history.map((version) => { const files = Array.isArray(version.attachments) ? version.attachments : version.attachment?.file ? [version.attachment] : []; return `<article class="submission-history-item"><b>Versi ${Number(version.revision)} · ${escapeHtml(new Date(version.submittedAt).toLocaleString("id-ID"))}</b>${version.response ? `<p>${escapeHtml(version.response)}</p>` : ""}${files.map((file, index) => `<a class="material-file-link" href="submission_file.php?task=${encodeURIComponent(task.id)}&revision=${Number(version.revision)}&index=${index}" target="_blank" rel="noopener">Lihat ${escapeHtml(file.name || "lampiran")}</a>`).join("<br>")}</article>`; }).join("")}</section>` : ""}${materialAttachmentMarkup(task.attachment)}${cannotEdit ? `<p class="account-help">${locked ? "Jawaban pilihan ganda sudah dikumpulkan dan dikunci." : "Jawaban tidak dapat diperbarui setelah tenggat."}</p>` : `<button type="button" class="primary-button submit-assignment" id="submitAssignment" data-taskid="${escapeHtml(task.id)}">${task.submitted ? "Perbarui jawaban" : "Kumpulkan jawaban"}</button>`}`;
   document.getElementById("lessonDialog").showModal();
   if (activeExamTaskId) requestExamFullscreen();
 }
@@ -899,7 +929,9 @@ async function submitAssignment(button) {
       throw new Error(result.message || "Jawaban belum terkirim.");
     task.submitted = true;
     task.kind = "done";
-    task.status = result.status;
+    task.status = ["essay", "essay_quiz"].includes(task.type)
+      ? "Menunggu penilaian"
+      : result.status;
     task.score = result.score;
     task.submission =
       task.type === "quiz"
@@ -907,8 +939,32 @@ async function submitAssignment(button) {
             answers: payload.answers,
             score: result.score,
             attachment: result.attachment,
+            essayResponses: result.essayResponses || {},
+            revision: result.revision,
+            submittedAt: result.submittedAt,
+            gradedAt: null,
+            feedback: null,
+            history: task.submission?.history || [],
           }
-        : { response: payload.response || "", attachment: result.attachment };
+        : {
+            response: payload.response || "",
+            attachment: result.attachment,
+            attachments: result.attachments || [],
+            revision: result.revision,
+            submittedAt: result.submittedAt,
+            score: null,
+            feedback: null,
+            gradedAt: null,
+            history: task.submission
+              ? [
+                  {
+                    ...task.submission,
+                    revision: task.submission.revision || result.revision - 1,
+                  },
+                  ...(task.submission.history || []),
+                ]
+              : [],
+          };
     if (task.examMode) endExamFocus();
     document.getElementById("lessonDialog").close();
     refreshCurrentPage();
@@ -1945,6 +2001,76 @@ document.addEventListener("click", (e) => {
   const button = e.target.closest("[data-view-submissions]");
   if (button) openTaskSubmissions(button.dataset.viewSubmissions);
 });
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-save-submission-grade]");
+  if (!button) return;
+  const form = button.closest(".submission-grade-form");
+  const taskId = form?.dataset.gradeTask;
+  const username = form?.dataset.gradeStudent;
+  const task = tasks.find((item) => item.id === taskId);
+  const entry = task?.submissions?.find((item) => item.username === username);
+  const score = form?.querySelector('[name="score"]')?.value;
+  const feedback = form?.querySelector('[name="feedback"]')?.value || "";
+  if (!task || !entry || !score || Number(score) < 0 || Number(score) > 100) {
+    notify("Masukkan nilai antara 0 dan 100.");
+    return;
+  }
+  button.disabled = true;
+  try {
+    const response = await fetch("submission_grade.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ csrfToken, taskId, username, score, feedback }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok)
+      throw new Error(result.message || "Penilaian belum dapat disimpan.");
+    entry.score = result.score;
+    entry.feedback = result.feedback;
+    entry.gradedAt = result.gradedAt;
+    if (task.submissionStats)
+      task.submissionStats.needsReview = Math.max(0, task.submissionStats.needsReview - 1);
+    const rosterEntry = task.roster?.find((item) => item.username === username);
+    if (rosterEntry) {
+      rosterEntry.score = result.score;
+      rosterEntry.needsReview = false;
+    }
+    const listButton = [...document.querySelectorAll("[data-view-submissions]")].find((item) => item.dataset.viewSubmissions === taskId);
+    if (listButton && task.submissionStats) {
+      listButton.textContent = `Pengumpulan (${task.submissionStats.submitted}/${task.submissionStats.total})${task.submissionStats.needsReview ? ` · ${task.submissionStats.needsReview} perlu dinilai` : ""}`;
+      const filter = document.getElementById("assignmentStatusFilter")?.value;
+      if (filter === "review" && task.submissionStats.needsReview === 0) {
+        listButton.closest(".assignment").hidden = true;
+        const empty = document.querySelector(".assignment-filter-empty");
+        if (empty)
+          empty.hidden = [...document.querySelectorAll(".assignment[data-classid]")].some((row) => !row.hidden);
+      }
+    }
+    openSubmissionAnswer(taskId, username);
+    notify("Nilai dan umpan balik berhasil disimpan.");
+  } catch (error) {
+    notify(error.message || "Penilaian belum dapat disimpan.");
+    button.disabled = false;
+  }
+});
+document.addEventListener("change", (event) => {
+  if (!["assignmentClassFilter", "assignmentStatusFilter"].includes(event.target.id)) return;
+  const classId = document.getElementById("assignmentClassFilter")?.value || "all";
+  const status = document.getElementById("assignmentStatusFilter")?.value || "all";
+  let visible = 0;
+  document.querySelectorAll(".assignment[data-classid]").forEach((row) => {
+    const matchesClass = classId === "all" || row.dataset.classid === classId;
+    const matchesStatus =
+      status === "all" ||
+      (status === "pending" && Number(row.dataset.pending) > 0) ||
+      (status === "review" && Number(row.dataset.review) > 0) ||
+      (status === "late" && Number(row.dataset.late) > 0);
+    row.hidden = !(matchesClass && matchesStatus);
+    if (!row.hidden) visible++;
+  });
+  const empty = document.querySelector(".assignment-filter-empty");
+  if (empty) empty.hidden = visible > 0;
+});
 
 // Materi selalu dimiliki satu kelas. Kelas baru tidak mewarisi materi kelas lain.
 const previousShowClassGroup = showClassGroup;
@@ -2286,22 +2412,8 @@ function teacherInsights() {
       ),
     ).values(),
   ];
-  const pending = tasks.reduce(
-    (total, task) =>
-      total +
-      Math.max(
-        0,
-        students.filter((student) =>
-          classGroups.some(
-            (group) =>
-              (group.students || []).some(
-                (member) => member.username === student.username,
-              ) && Number(task.classGroupId) === Number(group.id),
-          ),
-        ).length - (task.submissions || []).length,
-      ),
-    0,
-  );
+  const pending = tasks.reduce((total, task) => total + (task.submissionStats?.pending || 0), 0);
+  const needsReview = tasks.reduce((total, task) => total + (task.submissionStats?.needsReview || 0), 0);
   const scores = leaderboard.map((entry) => Number(entry.score) || 0);
   const average = scores.length
     ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length)
@@ -2309,13 +2421,13 @@ function teacherInsights() {
   const attention = leaderboard
     .filter((entry) => entry.score < 60 || entry.submitted === 0)
     .slice(0, 5);
-  return { students, pending, average, attention };
+  return { students, pending, needsReview, average, attention };
 }
 const previousTeacherHome = teacherHome;
 teacherHome = function () {
   const insights = teacherInsights();
   const base = previousTeacherHome();
-  const dashboard = `<section class="teacher-insight-grid"><article class="panel teacher-insight-card"><span class="teacher-home-icon">♙</span><div><span>Total siswa</span><b>${insights.students.length}</b><small>${classGroups.length} kelas aktif</small></div></article><article class="panel teacher-insight-card"><span class="teacher-home-icon">◷</span><div><span>Belum terkumpul</span><b>${insights.pending}</b><small>Pengumpulan yang perlu dipantau</small></div></article><article class="panel teacher-insight-card"><span class="teacher-home-icon">✦</span><div><span>Rata-rata nilai</span><b>${insights.average}%</b><small>Berdasarkan nilai kuis</small></div></article></section><section class="panel teacher-attention-panel"><div class="panel-heading"><div><h2>Siswa yang perlu diperhatikan</h2><p>Siswa dengan nilai rendah atau belum mengumpulkan kegiatan.</p></div><button type="button" data-page="leaderboard">Lihat leaderboard →</button></div>${insights.attention.map((item) => `<div class="teacher-attention-row"><span class="top-avatar">${escapeHtml(item.initials)}</span><span><b>${escapeHtml(item.name)}</b><small>${item.submitted} kegiatan terkumpul · nilai ${item.score}%</small></span></div>`).join("") || '<p class="empty-note">Belum ada siswa yang perlu diperhatikan.</p>'}</section>`;
+  const dashboard = `<section class="teacher-insight-grid"><article class="panel teacher-insight-card"><span class="teacher-home-icon">♙</span><div><span>Total siswa</span><b>${insights.students.length}</b><small>${classGroups.length} kelas aktif</small></div></article><article class="panel teacher-insight-card"><span class="teacher-home-icon">◷</span><div><span>Belum terkumpul</span><b>${insights.pending}</b><small>Pengumpulan yang perlu dipantau</small></div></article><article class="panel teacher-insight-card"><span class="teacher-home-icon">✎</span><div><span>Perlu dinilai</span><b>${insights.needsReview}</b><small>Tugas menunggu umpan balik</small></div></article><article class="panel teacher-insight-card"><span class="teacher-home-icon">✦</span><div><span>Rata-rata nilai</span><b>${insights.average}%</b><small>Berdasarkan nilai kuis</small></div></article></section><section class="panel teacher-attention-panel"><div class="panel-heading"><div><h2>Siswa yang perlu diperhatikan</h2><p>Siswa dengan nilai rendah atau belum mengumpulkan kegiatan.</p></div><button type="button" data-page="leaderboard">Lihat leaderboard →</button></div>${insights.attention.map((item) => `<div class="teacher-attention-row"><span class="top-avatar">${escapeHtml(item.initials)}</span><span><b>${escapeHtml(item.name)}</b><small>${item.submitted} kegiatan terkumpul · nilai ${item.score}%</small></span></div>`).join("") || '<p class="empty-note">Belum ada siswa yang perlu diperhatikan.</p>'}</section>`;
   return base.replace(
     '<section class="teacher-home-grid">',
     dashboard + '<section class="teacher-home-grid">',
@@ -2674,6 +2786,13 @@ openAssignment = function (id) {
   baseStudentAssignment(id);
   if (task) task.type = originalType;
   if (!task || !["quiz", "essay_quiz"].includes(originalType)) return;
+  if (originalType === "essay_quiz" && task.submitted) {
+    const feedback = `<section class="submission-feedback"><b>${task.submission?.gradedAt ? `Nilai: ${Number(task.submission.score)}/100` : "Menunggu penilaian guru"}</b>${task.submission?.feedback ? `<p>${escapeHtml(task.submission.feedback).replace(/\n/g, "<br>")}</p>` : ""}</section>`;
+    document.querySelector(".quiz-question")?.insertAdjacentHTML("beforebegin", feedback);
+    const scoreNotice = document.querySelector(".quiz-score");
+    if (scoreNotice && !task.submission?.gradedAt)
+      scoreNotice.textContent = "Jawaban dikunci. Nilai akhir menunggu penilaian guru.";
+  }
   task.questions.forEach((question, index) => {
     if (question.kind !== "essay") return;
     const fieldset = document.querySelectorAll(".quiz-question")[index];
@@ -2687,7 +2806,12 @@ submitAssignment = async function (button) {
   const originalType = task?.type;
   if (task && originalType === "essay_quiz") task.type = "quiz";
   try {
-    return await baseSubmitAssignment(button);
+    const result = await baseSubmitAssignment(button);
+    if (task && originalType === "essay_quiz" && task.submitted)
+      task.status = task.submission?.gradedAt
+        ? `Dinilai ${task.submission.score}/100`
+        : "Menunggu penilaian";
+    return result;
   } finally {
     if (task) task.type = originalType;
   }

@@ -1060,6 +1060,21 @@ select.editor-input { height: 42px; }
 @media(max-width:600px) { .quran-digital-art { font-size: 21px; } }
 
 .submission-card{border:1px solid #e2eae2;border-radius:12px;background:#fff;padding:15px;margin:12px 0}.submission-student{display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid #edf1ed}.submission-student>div{display:grid;gap:3px;flex:1}.submission-student small{font-size:11px;color:#798579}.submission-score{color:#17633d}.submission-answer{padding-top:12px}.submission-answer p{margin:6px 0}.submission-essay{white-space:normal;border-radius:8px;background:#f6f8f5;padding:12px}.submission-correctness{margin-left:6px;font-size:11px;font-weight:700}.submission-correctness.correct{color:#21804c}.submission-correctness.incorrect{color:#a4433e}
+.submission-summary { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.submission-summary span { padding:6px 9px; border-radius:7px; background:#f1f6f1; color:#48604c; font-size:11px; font-weight:700; }
+.submission-grade-form, .submission-feedback { display:grid; gap:8px; margin-top:16px; padding:14px; border:1px solid #dfe9df; border-radius:10px; background:#f8fbf8; }
+.submission-grade-form .editor-label { margin:4px 0 0; }
+.submission-grade-form .primary-button { justify-self:start; }
+.submission-feedback b { color:#17633d; }
+.submission-feedback p { margin:4px 0; white-space:pre-wrap; }
+.submission-feedback small { color:#788579; line-height:1.5; }
+.submission-history { margin-top:18px; }
+.submission-history h3 { margin-bottom:8px; }
+.submission-history-item { display:grid; gap:6px; padding:11px 0; border-top:1px solid #edf1ed; font-size:12px; }
+.submission-history-item p { margin:0; color:#5f6e62; white-space:pre-wrap; }
+.assignment-teacher-filters { align-items:flex-end; }
+.assignment-teacher-filters label { display:grid; gap:5px; color:#68766c; font-size:11px; font-weight:700; }
+.assignment-teacher-filters .editor-input { min-width:190px; padding:8px 10px; }
 
 
 /* Student workspace refinements */
@@ -1232,7 +1247,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .progress-percent { color: var(--green); font: 700 20px var(--head); }
 .progress-track-large { height: 10px; margin-top: 5px; }
 .progress-metrics { margin-bottom: 22px; }
-.teacher-insight-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+.teacher-insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 20px 0; }
 .teacher-insight-card { display: flex; align-items: center; gap: 12px; }
 .teacher-insight-card > div { min-width: 0; }
 .teacher-insight-card span:not(.teacher-home-icon), .teacher-insight-card small { display: block; color: var(--muted); font-size: 11px; }

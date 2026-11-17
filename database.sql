@@ -68,6 +68,45 @@ CREATE TABLE IF NOT EXISTS assignments (
   KEY assignments_type_idx (type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS submissions (
+  task_id VARCHAR(48) NOT NULL,
+  student_id BIGINT UNSIGNED NOT NULL,
+  submission_data JSON NOT NULL,
+  revision INT UNSIGNED NOT NULL DEFAULT 1,
+  score DECIMAL(5,2) NULL,
+  feedback TEXT NULL,
+  submitted_at DATETIME NOT NULL,
+  graded_by BIGINT UNSIGNED NULL,
+  graded_at DATETIME NULL,
+  PRIMARY KEY (task_id, student_id),
+  KEY submissions_student_idx (student_id),
+  KEY submissions_task_submitted_idx (task_id, submitted_at),
+  CONSTRAINT submissions_task_fk FOREIGN KEY (task_id) REFERENCES assignments (task_id) ON DELETE CASCADE,
+  CONSTRAINT submissions_student_fk FOREIGN KEY (student_id) REFERENCES users (id) ON DELETE CASCADE,
+  CONSTRAINT submissions_graded_by_fk FOREIGN KEY (graded_by) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS submission_history (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  task_id VARCHAR(48) NOT NULL,
+  student_id BIGINT UNSIGNED NOT NULL,
+  revision INT UNSIGNED NOT NULL,
+  submission_data JSON NOT NULL,
+  score DECIMAL(5,2) NULL,
+  feedback TEXT NULL,
+  submitted_at DATETIME NOT NULL,
+  graded_by BIGINT UNSIGNED NULL,
+  graded_at DATETIME NULL,
+  archived_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY submission_history_revision_unique (task_id, student_id, revision),
+  KEY submission_history_student_idx (student_id, task_id),
+  CONSTRAINT submission_history_task_fk FOREIGN KEY (task_id) REFERENCES assignments (task_id) ON DELETE CASCADE,
+  CONSTRAINT submission_history_student_fk FOREIGN KEY (student_id) REFERENCES users (id) ON DELETE CASCADE,
+  CONSTRAINT submission_history_submission_fk FOREIGN KEY (task_id, student_id) REFERENCES submissions (task_id, student_id) ON DELETE CASCADE,
+  CONSTRAINT submission_history_graded_by_fk FOREIGN KEY (graded_by) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS class_groups (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   teacher_id BIGINT UNSIGNED NOT NULL,

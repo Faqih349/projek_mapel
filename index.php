@@ -69,21 +69,55 @@ if ($classIds) {
     foreach ($classGroups as &$classGroup) $classGroup['students'] = $membersByClass[$classGroup['id']] ?? [];
     unset($classGroup);
 }
-$submissionData = json_decode((string)file_get_contents(__DIR__ . '/storage/submissions.json'), true) ?: [];
-$studentAccounts = $db->query("SELECT username,name,initials,class_name,role FROM users WHERE role='student' ORDER BY name")->fetchAll();
-$studentByUsername = [];
-foreach ($studentAccounts as $account) $studentByUsername[$account['username']] = $account;
-$submissionsByTask = [];
-foreach ($submissionData as $username => $userSubmissions) {
-    if (!isset($studentByUsername[$username]) || !is_array($userSubmissions)) continue;
-    foreach ($userSubmissions as $taskId => $submission) {
-        if (!is_array($submission)) continue;
-        $account = $studentByUsername[$username];
-        $entry = ['username'=>$username,'name'=>$account['name'],'className'=>$account['class_name'],'response'=>(string)($submission['response'] ?? ''),'answers'=>is_array($submission['answers'] ?? null) ? $submission['answers'] : [],'score'=>$submission['score'] ?? null,'submittedAt'=>(string)($submission['submittedAt'] ?? '')];
-        if (is_array($submission['attachment'] ?? null)) $entry['attachment'] = $submission['attachment'];
-        $submissionsByTask[$taskId][] = $entry;
-    }
+$submissionData = [];
+$submissionRows = [];
+if (($student['role'] ?? '') === 'teacher') {
+    $currentSubmissions = $db->prepare('SELECT s.task_id,u.username,u.name,u.initials,u.class_name,s.submission_data,s.revision,s.score,s.feedback,s.submitted_at,s.graded_at FROM submissions s JOIN users u ON u.id=s.student_id JOIN assignments a ON a.task_id=s.task_id JOIN class_groups cg ON cg.id=a.class_group_id JOIN class_memberships cm ON cm.class_group_id=a.class_group_id AND cm.student_id=s.student_id WHERE cg.teacher_id=:teacher_id ORDER BY s.submitted_at DESC');
+    $currentSubmissions->execute(['teacher_id'=>$currentUserId]);
+    $submissionRows = $currentSubmissions->fetchAll();
+} else {
+    $currentSubmissions = $db->prepare('SELECT s.task_id,u.username,u.name,u.initials,u.class_name,s.submission_data,s.revision,s.score,s.feedback,s.submitted_at,s.graded_at FROM submissions s JOIN users u ON u.id=s.student_id WHERE s.student_id=:student_id ORDER BY s.submitted_at DESC');
+    $currentSubmissions->execute(['student_id'=>$currentUserId]);
+    $submissionRows = $currentSubmissions->fetchAll();
 }
+$historyByUserTask = [];
+if (($student['role'] ?? '') === 'teacher') {
+    $historyQuery = $db->prepare('SELECT h.task_id,u.username,h.revision,h.submission_data,h.score,h.feedback,h.submitted_at,h.graded_at FROM submission_history h JOIN users u ON u.id=h.student_id JOIN assignments a ON a.task_id=h.task_id JOIN class_groups cg ON cg.id=a.class_group_id JOIN class_memberships cm ON cm.class_group_id=a.class_group_id AND cm.student_id=h.student_id WHERE cg.teacher_id=:teacher_id ORDER BY h.revision DESC');
+    $historyQuery->execute(['teacher_id'=>$currentUserId]);
+} else {
+    $historyQuery = $db->prepare('SELECT h.task_id,u.username,h.revision,h.submission_data,h.score,h.feedback,h.submitted_at,h.graded_at FROM submission_history h JOIN users u ON u.id=h.student_id WHERE h.student_id=:student_id ORDER BY h.revision DESC');
+    $historyQuery->execute(['student_id'=>$currentUserId]);
+}
+foreach ($historyQuery->fetchAll() as $row) {
+    $prior = json_decode((string)$row['submission_data'], true);
+    if (!is_array($prior)) continue;
+    $submittedAt = new DateTimeImmutable((string)$row['submitted_at'], new DateTimeZone('Asia/Jakarta'));
+    $prior['revision'] = (int)$row['revision'];
+    $prior['score'] = $row['score'] === null ? null : (float)$row['score'];
+    $prior['feedback'] = $row['feedback'];
+    $prior['submittedAt'] = $submittedAt->format(DATE_ATOM);
+    $prior['gradedAt'] = $row['graded_at'] ? (new DateTimeImmutable((string)$row['graded_at'], new DateTimeZone('Asia/Jakarta')))->format(DATE_ATOM) : null;
+    $historyByUserTask[$row['username']][$row['task_id']][] = $prior;
+}
+$submissionsByTask = [];
+foreach ($submissionRows as $row) {
+    $submission = json_decode((string)$row['submission_data'], true);
+    if (!is_array($submission)) continue;
+    $submittedAt = new DateTimeImmutable((string)$row['submitted_at'], new DateTimeZone('Asia/Jakarta'));
+    $submission['username'] = (string)$row['username'];
+    $submission['name'] = (string)$row['name'];
+    $submission['initials'] = (string)$row['initials'];
+    $submission['className'] = (string)$row['class_name'];
+    $submission['revision'] = (int)$row['revision'];
+    $submission['score'] = $row['score'] === null ? null : (float)$row['score'];
+    $submission['feedback'] = $row['feedback'];
+    $submission['submittedAt'] = $submittedAt->format(DATE_ATOM);
+    $submission['gradedAt'] = $row['graded_at'] ? (new DateTimeImmutable((string)$row['graded_at'], new DateTimeZone('Asia/Jakarta')))->format(DATE_ATOM) : null;
+    $submission['history'] = $historyByUserTask[$row['username']][$row['task_id']] ?? [];
+    $submissionData[$row['username']][$row['task_id']] = $submission;
+    $submissionsByTask[$row['task_id']][] = $submission;
+}
+$studentAccounts = $db->query("SELECT username,name,initials,class_name,role FROM users WHERE role='student' ORDER BY name")->fetchAll();
 $studentSubmissions = $submissionData[$student['username']] ?? [];
 $assignmentCatalog = [];
 $assignmentColumns = $db->query('SHOW COLUMNS FROM assignments')->fetchAll(PDO::FETCH_COLUMN);
@@ -107,6 +141,28 @@ foreach ($db->query("SELECT task_id,course_id,{$classGroupColumn},course_title,t
 $tasks = [];
 foreach ($assignmentCatalog as $assignment) {
     $submission = $studentSubmissions[$assignment['id']] ?? null;
+    $targetGroup = null;
+    foreach ($classGroups as $group) if ($group['id'] === $assignment['classGroupId']) { $targetGroup = $group; break; }
+    $roster = [];
+    if (($student['role'] ?? '') === 'teacher' && $targetGroup) {
+        foreach ($targetGroup['students'] as $member) {
+            $memberSubmission = null;
+            foreach ($submissionsByTask[$assignment['id']] ?? [] as $entry) if ($entry['username'] === $member['username']) { $memberSubmission = $entry; break; }
+            $roster[] = [
+                'username'=>$member['username'],'name'=>$member['name'],'className'=>$targetGroup['className'],
+                'submitted'=>(bool)$memberSubmission,'submittedAt'=>$memberSubmission['submittedAt'] ?? null,
+                'score'=>$memberSubmission['score'] ?? null,'needsReview'=>$memberSubmission && in_array($assignment['type'], ['essay','essay_quiz'], true) && empty($memberSubmission['gradedAt']),
+            ];
+        }
+    }
+    $taskSubmissions = $submissionsByTask[$assignment['id']] ?? [];
+    $dueDate = DateTime::createFromFormat('!Y-m-d\TH:i', (string)$assignment['due'], new DateTimeZone('Asia/Jakarta'));
+    $pastDue = $dueDate && new DateTime('now', new DateTimeZone('Asia/Jakarta')) > $dueDate;
+    $lateCount = 0;
+    foreach ($taskSubmissions as $entry) {
+        if ($dueDate && !empty($entry['submittedAt']) && new DateTime((string)$entry['submittedAt']) > $dueDate) $lateCount++;
+    }
+    $needsReviewCount = count(array_filter($taskSubmissions, static fn(array $entry): bool => in_array($assignment['type'], ['essay','essay_quiz'], true) && empty($entry['gradedAt'])));
     if (($student['role'] ?? '') !== 'teacher') {
         foreach ($assignment['questions'] as &$question) unset($question['answer']);
         unset($question);
@@ -116,8 +172,10 @@ foreach ($assignmentCatalog as $assignment) {
         'type'=>$assignment['type'], 'examMode'=>(bool)($assignment['exam_mode'] ?? false), 'icon'=>$assignment['icon'], 'title'=>$assignment['title'],
         'meta'=>$assignment['courseTitle'] . ' · Dikumpulkan ' . $assignment['due'], 'due'=>$assignment['due'],
         'description'=>$assignment['description'], 'prompt'=>$assignment['prompt'], 'questions'=>$assignment['questions'], 'attachment'=>$assignment['attachment'] ?? null,
-        'submissions'=>($student['role'] ?? '') === 'teacher' ? ($submissionsByTask[$assignment['id']] ?? []) : [],
-        'status'=>$submission ? ($assignment['type'] === 'quiz' ? 'Nilai ' . $submission['score'] . '/100' : 'Terkumpul') : 'Belum dikerjakan',
+        'submissions'=>($student['role'] ?? '') === 'teacher' ? $taskSubmissions : [],
+        'roster'=>$roster,
+        'submissionStats'=>['submitted'=>count($taskSubmissions),'total'=>count($roster),'pending'=>max(0,count($roster)-count($taskSubmissions)),'late'=>$lateCount,'needsReview'=>$needsReviewCount],
+        'status'=>$submission ? (in_array($assignment['type'], ['essay','essay_quiz'], true) && empty($submission['gradedAt']) ? 'Menunggu penilaian' : ($submission['score'] !== null ? 'Dinilai ' . $submission['score'] . '/100' : 'Terkumpul')) : ($pastDue ? 'Tenggat lewat' : 'Belum dikerjakan'),
         'kind'=>$submission ? 'done' : 'due', 'submitted'=>(bool)$submission, 'score'=>$submission['score'] ?? null, 'submission'=>$submission,
     ];
 }
@@ -183,7 +241,7 @@ $lmsData = json_encode(['courses'=>$courses,'tasks'=>$tasks,'lessons'=>$clientLe
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f5f7f2">
   <title>MutqinSpace — Belajar Agama</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css?v=20261113-search-layout-polish">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css?v=20261117-submission-workflow">
 </head><body>
 <div class="app-shell"><aside class="sidebar" id="sidebar">
   <div class="night-stars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="cartoon-moon" aria-hidden="true"><span></span></div>
@@ -193,6 +251,6 @@ $lmsData = json_encode(['courses'=>$courses,'tasks'=>$tasks,'lessons'=>$clientLe
   </nav><div class="side-label side-label-spaced">LAINNYA</div><nav class="nav-list"><?php if ($student['role'] !== 'teacher'): ?><button class="nav-item" data-page="leaderboard"><span class="nav-icon">&#9819;</span> Leaderboard nilai siswa</button><?php endif; ?><button class="nav-item" data-page="bantuan"><span class="nav-icon">?</span> Pusat bantuan</button></nav>  <div class="sidebar-bottom"><div class="school-brand"><img class="school-brand-mark" src="sman24-logo-transparent.png" alt="Logo SMAN 24 Bandung"><span><b>SMAN 24 Bandung</b><small>Ruang belajar digital</small></span></div></div>
 </aside><main class="main-area"><header class="topbar"><button class="mobile-menu" id="mobileMenu" aria-label="Buka navigasi">&#9776;</button><div class="breadcrumb">Ruang belajar <span>/</span> <b id="crumb">Beranda</b></div><div class="top-actions"><button class="icon-button" aria-label="Notifikasi" id="notifications">◈<i></i></button><div class="profile-menu-wrap"><button type="button" class="profile-trigger" id="profileMenuToggle" aria-expanded="false" aria-controls="profileMenu" aria-label="Buka menu akun"><span class="top-avatar"><?= htmlspecialchars($student['initials'], ENT_QUOTES, 'UTF-8') ?></span><span class="top-user"><b><?= htmlspecialchars($student['name'], ENT_QUOTES, 'UTF-8') ?></b><small><?= $student['role'] === 'teacher' ? 'Guru Pendidikan Agama' : 'Pelajar · Kelas ' . htmlspecialchars($student['class'], ENT_QUOTES, 'UTF-8') ?></small></span><span class="chevron">&#8964;</span></button><div class="profile-menu" id="profileMenu" hidden><div class="profile-menu-heading"><?= htmlspecialchars($student['name'], ENT_QUOTES, 'UTF-8') ?></div><button type="button" class="profile-menu-item" data-page="pengaturan"><span>⚙</span> Pengaturan</button><form action="logout.php" method="post"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>"><button class="profile-menu-item profile-logout" type="submit"><span>&#8618;</span> Logout</button></form></div></div></div></header><section class="content" id="pageContent"></section></main></div>
 <div class="toast" id="toast" role="status"></div><dialog id="lessonDialog"><form method="dialog" class="dialog-inner"><button type="button" class="dialog-close" id="dialogClose" aria-label="Tutup">&times;</button><div id="dialogContent"></div></form></dialog>
-<script>window.LMS_DATA = <?= $lmsData ?>;</script><script src="app.js?v=20261115-class-material-scope-final"></script>
+<script>window.LMS_DATA = <?= $lmsData ?>;</script><script src="app.js?v=20261117-submission-workflow"></script>
 </body></html>
 

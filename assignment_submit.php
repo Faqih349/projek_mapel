@@ -35,11 +35,15 @@ $membership=$db->prepare('SELECT 1 FROM class_memberships cm JOIN users u ON u.i
 $membership->execute(['class_id'=>$assignment['class_group_id'],'username'=>(string)$_SESSION['user']['username']]);
 if (!$membership->fetchColumn()) reply(403, ['ok'=>false,'message'=>'Tugas ini bukan untuk kelas yang kamu ikuti.']);
 
-$submissionsPath = __DIR__ . '/storage/submissions.json';
-$submissions = json_decode((string)file_get_contents($submissionsPath), true) ?: [];
 $username = (string)$_SESSION['user']['username'];
-$oldSubmission = $submissions[$username][$assignment['id']] ?? [];
-if ($assignment['type'] === 'quiz' && is_array($oldSubmission) && $oldSubmission) reply(409, ['ok'=>false,'message'=>'Jawaban kuis sudah dikumpulkan dan dikunci. Kamu tidak dapat mengubahnya lagi.']);
+$studentQuery = $db->prepare('SELECT id FROM users WHERE username=:username AND role=\'student\' LIMIT 1');
+$studentQuery->execute(['username'=>$username]);
+$studentId = (int)$studentQuery->fetchColumn();
+$currentQuery = $db->prepare('SELECT revision,submission_data,score,feedback,submitted_at,graded_by,graded_at FROM submissions WHERE task_id=:task_id AND student_id=:student_id LIMIT 1');
+$currentQuery->execute(['task_id'=>$assignment['id'],'student_id'=>$studentId]);
+$currentRow = $currentQuery->fetch();
+$oldSubmission = $currentRow ? (json_decode((string)$currentRow['submission_data'], true) ?: []) : [];
+if (in_array($assignment['type'], ['quiz','essay_quiz'], true) && $currentRow) reply(409, ['ok'=>false,'message'=>'Jawaban kuis sudah dikumpulkan dan dikunci. Kamu tidak dapat mengubahnya lagi.']);
 $submission = ['score'=>null,'submittedAt'=>date(DATE_ATOM)];
 if (in_array($assignment['type'], ['quiz','essay_quiz'], true)) {
     $answers = $data['answers'] ?? [];
@@ -100,7 +104,6 @@ if ($hasUpload) {
     $uploadDir = __DIR__ . '/storage/material_uploads';
     if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) reply(500, ['ok'=>false,'message'=>'Folder penyimpanan lampiran tidak dapat dibuat.']);
     $newFile = bin2hex(random_bytes(16)) . '.' . $allowed[$mime];
-    $newFile = bin2hex(random_bytes(16)) . '.' . $allowed[$mime];
     if (!move_uploaded_file((string)$uploadItem['tmp_name'], $uploadDir . '/' . $newFile)) reply(500, ['ok'=>false,'message'=>'File belum dapat disimpan. Periksa izin folder storage.']);
     $newFiles[] = ['file'=>$newFile,'name'=>basename((string)($uploadItem['name'] ?? 'lampiran')),'mime'=>$mime,'size'=>$size];
     }
@@ -111,13 +114,49 @@ if ($hasUpload) {
     if (is_array($oldSubmission['attachment'] ?? null)) $submission['attachment'] = $oldSubmission['attachment'];
 }
 
-if (!isset($submissions[$username]) || !is_array($submissions[$username])) $submissions[$username] = [];
-$submissions[$username][$assignment['id']] = $submission;
-$encoded = json_encode($submissions, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE);
-if ($encoded === false || file_put_contents($submissionsPath, $encoded, LOCK_EX) === false) {
+$encoded = json_encode($submission, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+if ($encoded === false) {
     foreach ($newFiles as $newFile) @unlink(__DIR__ . '/storage/material_uploads/' . $newFile['file']);
-    reply(500, ['ok'=>false,'message'=>'Jawaban belum dapat disimpan. Periksa izin folder storage.']);
+    reply(500, ['ok'=>false,'message'=>'Jawaban belum dapat disiapkan untuk disimpan.']);
 }
-foreach (array_merge(is_array($oldSubmission['attachments'] ?? null) ? $oldSubmission['attachments'] : [], is_array($oldSubmission['attachment'] ?? null) ? [$oldSubmission['attachment']] : []) as $oldFile) if (preg_match('/^[a-f0-9]{32}\.(jpg|png|webp|gif|mp4|webm|ogv)$/', (string)($oldFile['file'] ?? ''))) @unlink(__DIR__ . '/storage/material_uploads/' . $oldFile['file']);
-if ($assignment['type'] === 'essay' && ($data['answerMode'] ?? 'text') === 'text' && !empty($oldSubmission['attachment']['file']) && preg_match('/^[a-f0-9]{32}\.(jpg|png|webp|gif|mp4|webm|ogv)$/', (string)$oldSubmission['attachment']['file'])) @unlink(__DIR__ . '/storage/material_uploads/' . $oldSubmission['attachment']['file']);
-reply(200, ['ok'=>true,'score'=>$submission['score'],'total'=>100,'status'=>in_array($assignment['type'], ['quiz','essay_quiz'], true) ? 'Nilai ' . $submission['score'] . '/100' : 'Terkumpul','attachment'=>$submission['attachment'] ?? null,'attachments'=>$submission['attachments'] ?? ($submission['attachment'] ?? null ? [$submission['attachment']] : [])]);
+$submittedAt = (new DateTimeImmutable('now', new DateTimeZone('Asia/Jakarta')))->format('Y-m-d H:i:s');
+$expectedRevision = $currentRow ? (int)$currentRow['revision'] : 0;
+try {
+    $db->beginTransaction();
+    $lockAssignment = $db->prepare('SELECT task_id FROM assignments WHERE task_id=:task_id FOR UPDATE');
+    $lockAssignment->execute(['task_id'=>$assignment['id']]);
+    $lockedQuery = $db->prepare('SELECT revision,submission_data,score,feedback,submitted_at,graded_by,graded_at FROM submissions WHERE task_id=:task_id AND student_id=:student_id FOR UPDATE');
+    $lockedQuery->execute(['task_id'=>$assignment['id'],'student_id'=>$studentId]);
+    $lockedRow = $lockedQuery->fetch();
+    $actualRevision = $lockedRow ? (int)$lockedRow['revision'] : 0;
+    if ($actualRevision !== $expectedRevision || (in_array($assignment['type'], ['quiz','essay_quiz'], true) && $lockedRow)) {
+        $db->rollBack();
+        foreach ($newFiles as $newFile) @unlink(__DIR__ . '/storage/material_uploads/' . $newFile['file']);
+        reply(409, ['ok'=>false,'message'=>'Pengumpulan berubah di sesi lain. Muat ulang halaman sebelum mencoba lagi.']);
+    }
+    if ($lockedRow) {
+        $archive = $db->prepare('INSERT INTO submission_history (task_id,student_id,revision,submission_data,score,feedback,submitted_at,graded_by,graded_at) VALUES (:task_id,:student_id,:revision,:submission_data,:score,:feedback,:submitted_at,:graded_by,:graded_at)');
+        $archive->execute([
+            'task_id'=>$assignment['id'],'student_id'=>$studentId,'revision'=>$actualRevision,
+            'submission_data'=>(string)$lockedRow['submission_data'],'score'=>$lockedRow['score'],
+            'feedback'=>$lockedRow['feedback'],'submitted_at'=>$lockedRow['submitted_at'],
+            'graded_by'=>$lockedRow['graded_by'],'graded_at'=>$lockedRow['graded_at'],
+        ]);
+        $save = $db->prepare('UPDATE submissions SET submission_data=:submission_data,revision=:revision,score=:score,feedback=NULL,submitted_at=:submitted_at,graded_by=NULL,graded_at=NULL WHERE task_id=:task_id AND student_id=:student_id');
+    } else {
+        $save = $db->prepare('INSERT INTO submissions (task_id,student_id,submission_data,revision,score,submitted_at) VALUES (:task_id,:student_id,:submission_data,1,:score,:submitted_at)');
+    }
+    $saveParams = [
+        'task_id'=>$assignment['id'],'student_id'=>$studentId,'submission_data'=>$encoded,
+        'score'=>$submission['score'],'submitted_at'=>$submittedAt,
+    ];
+    if ($lockedRow) $saveParams['revision'] = $actualRevision + 1;
+    $save->execute($saveParams);
+    $db->commit();
+} catch (Throwable $exception) {
+    if ($db->inTransaction()) $db->rollBack();
+    foreach ($newFiles as $newFile) @unlink(__DIR__ . '/storage/material_uploads/' . $newFile['file']);
+    error_log('MutqinSpace submission save failed: ' . $exception->getMessage());
+    reply(500, ['ok'=>false,'message'=>'Jawaban belum dapat disimpan. Periksa koneksi dan struktur database.']);
+}
+reply(200, ['ok'=>true,'score'=>$submission['score'],'total'=>100,'revision'=>$expectedRevision + 1,'submittedAt'=>(new DateTimeImmutable($submittedAt, new DateTimeZone('Asia/Jakarta')))->format(DATE_ATOM),'status'=>in_array($assignment['type'], ['quiz','essay_quiz'], true) ? 'Nilai ' . $submission['score'] . '/100' : 'Terkumpul','answers'=>$submission['answers'] ?? null,'essayResponses'=>$submission['essayResponses'] ?? [],'attachment'=>$submission['attachment'] ?? null,'attachments'=>$submission['attachments'] ?? ($submission['attachment'] ?? null ? [$submission['attachment']] : [])]);
