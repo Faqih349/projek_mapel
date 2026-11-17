@@ -1062,6 +1062,8 @@ select.editor-input { height: 42px; }
 .submission-card{border:1px solid #e2eae2;border-radius:12px;background:#fff;padding:15px;margin:12px 0}.submission-student{display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid #edf1ed}.submission-student>div{display:grid;gap:3px;flex:1}.submission-student small{font-size:11px;color:#798579}.submission-score{color:#17633d}.submission-answer{padding-top:12px}.submission-answer p{margin:6px 0}.submission-essay{white-space:normal;border-radius:8px;background:#f6f8f5;padding:12px}.submission-correctness{margin-left:6px;font-size:11px;font-weight:700}.submission-correctness.correct{color:#21804c}.submission-correctness.incorrect{color:#a4433e}
 .submission-summary { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
 .submission-summary span { padding:6px 9px; border-radius:7px; background:#f1f6f1; color:#48604c; font-size:11px; font-weight:700; }
+.submission-filter { display:grid; gap:6px; max-width:280px; margin:14px 0; color:#68766c; font-size:11px; font-weight:700; }
+.submission-filter .editor-input { width:100%; box-sizing:border-box; }
 .submission-grade-form, .submission-feedback { display:grid; gap:8px; margin-top:16px; padding:14px; border:1px solid #dfe9df; border-radius:10px; background:#f8fbf8; }
 .submission-grade-form .editor-label { margin:4px 0 0; }
 .submission-grade-form .primary-button { justify-self:start; }

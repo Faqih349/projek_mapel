@@ -23,6 +23,8 @@ let classGroups = Array.isArray(initialClassGroups) ? initialClassGroups : [];
 let activeClassGroup = null;
 let activeClassTab = "materi";
 const isTeacher = student.role === "teacher";
+const notificationSeenStorageKey = `mutqinspace-notifications-seen-${student.username}`;
+let notificationSeenThisSession = new Set();
 function initGlobalSearch() {
   const actions = document.querySelector(".top-actions");
   const topbar = document.querySelector(".topbar");
@@ -466,12 +468,15 @@ function openLibraryEditor() {
 }
 function assignmentPage() {
   const visibleTasks = studentTasks();
-  const teacherFilters = isTeacher
-    ? `<div class="filter-row assignment-teacher-filters"><label>Kelas <select class="editor-input" id="assignmentClassFilter"><option value="all">Semua kelas</option>${classGroups.map((group) => `<option value="${Number(group.id)}">${escapeHtml(group.className)}</option>`).join("")}</select></label><label>Status <select class="editor-input" id="assignmentStatusFilter"><option value="all">Semua status</option><option value="pending">Ada yang belum mengumpulkan</option><option value="review">Perlu dinilai</option><option value="late">Ada yang terlambat</option></select></label></div>`
+  const classFilter = activeClassGroup
+    ? ""
+    : `<label>Kelas <select class="editor-input" id="assignmentClassFilter"><option value="all">Semua kelas</option>${classGroups.map((group) => `<option value="${Number(group.id)}">${escapeHtml(group.className)}</option>`).join("")}</select></label>`;
+  const teacherFilters = isTeacher && !activeClassGroup
+    ? `<div class="filter-row assignment-teacher-filters">${classFilter}</div>`
     : "";
   const assignmentRows = visibleTasks.map((task) => {
     const stats = task.submissionStats || {};
-    return `<article class="assignment" data-kind="${task.submitted ? "done" : "due"}" ${isTeacher ? `data-classid="${Number(task.classGroupId)}" data-pending="${stats.pending || 0}" data-review="${stats.needsReview || 0}" data-late="${stats.late || 0}"` : ""}><div class="task-icon">${escapeHtml(task.icon)}</div><div class="assignment-info"><b>${escapeHtml(task.title)}</b><small>${escapeHtml(assignmentMeta(task))} &middot; ${task.type === "quiz" ? "Kuis pilihan ganda" : task.type === "essay_quiz" ? "Soal pilihan ganda + esai" : "Tugas esai"}</small></div>${isTeacher ? `<div class="teacher-task-actions"><button type="button" class="outline-button" data-view-submissions="${escapeHtml(task.id)}">Pengumpulan (${stats.submitted || 0}/${stats.total || 0})${stats.needsReview ? ` · ${stats.needsReview} perlu dinilai` : ""}</button><button type="button" class="outline-button" data-edit-assignment="${escapeHtml(task.id)}">Ubah</button><button type="button" class="content-delete-button" data-delete-assignment="${escapeHtml(task.id)}">Hapus</button></div>` : `<span class="task-status ${task.submitted ? "done" : ""}">${escapeHtml(task.status)}</span><button type="button" data-task="${escapeHtml(task.id)}">${task.submitted ? "Lihat hasil" : "Kerjakan"} &#8594;</button>`}</article>`;
+    return `<article class="assignment" data-kind="${task.submitted ? "done" : "due"}" ${isTeacher ? `data-classid="${Number(task.classGroupId)}"` : ""}><div class="task-icon">${escapeHtml(task.icon)}</div><div class="assignment-info"><b>${escapeHtml(task.title)}</b><small>${escapeHtml(assignmentMeta(task))} &middot; ${task.type === "quiz" ? "Kuis pilihan ganda" : task.type === "essay_quiz" ? "Soal pilihan ganda + esai" : "Tugas esai"}</small></div>${isTeacher ? `<div class="teacher-task-actions"><button type="button" class="outline-button" data-view-submissions="${escapeHtml(task.id)}">Pengumpulan (${stats.submitted || 0}/${stats.total || 0})${stats.needsReview ? ` · ${stats.needsReview} perlu dinilai` : ""}</button><button type="button" class="outline-button" data-edit-assignment="${escapeHtml(task.id)}">Ubah</button><button type="button" class="content-delete-button" data-delete-assignment="${escapeHtml(task.id)}">Hapus</button></div>` : `<span class="task-status ${task.submitted ? "done" : ""}">${escapeHtml(task.status)}</span><button type="button" data-task="${escapeHtml(task.id)}">${task.submitted ? "Lihat hasil" : "Kerjakan"} &#8594;</button>`}</article>`;
   }).join("");
   return `<div class="page-head"><div><div class="eyebrow">KEGIATAN BELAJAR</div><h1 class="page-title">Tugas & kuis</h1><p class="page-subtitle">${isTeacher ? "Buat tugas dan kuis, pantau pengumpulan, lalu beri nilai dan umpan balik." : "Semua tugas dari kelas yang kamu ikuti. Pilih status untuk menemukan kegiatan dengan cepat."}</p></div>${isTeacher ? '<button class="primary-button" id="addAssignment">&#43; Buat tugas atau kuis</button>' : `<div class="date-chip">${visibleTasks.filter((task) => !task.submitted).length} belum selesai</div>`}</div>${teacherFilters}${!isTeacher ? `<div class="filter-row" role="group" aria-label="Filter tugas"><button class="filter-pill active" data-filter="all">Semua <span>${visibleTasks.length}</span></button><button class="filter-pill" data-filter="due">Belum selesai <span>${visibleTasks.filter((task) => !task.submitted).length}</span></button><button class="filter-pill" data-filter="done">Sudah dikerjakan <span>${visibleTasks.filter((task) => task.submitted).length}</span></button></div>${!classGroups.length ? '<section class="panel student-empty-classes"><b>Tugas akan tampil setelah kamu masuk kelas</b><p>Gunakan kode undangan yang diberikan guru.</p><button class="outline-button" data-page="kelas">Masuk kelas &#8594;</button></section>' : ""}` : ""}<div class="assignment-list">${assignmentRows || `<div class="empty-note">${isTeacher ? "Belum ada tugas. Buat tugas atau kuis pertama untuk murid." : "Belum ada tugas atau kuis dari kelasmu."}</div>`}<p class="empty-note assignment-filter-empty" hidden>Tidak ada tugas pada filter ini.</p></div>`;
 }
@@ -659,6 +664,7 @@ function render(key) {
     .querySelectorAll(".nav-item[data-page]")
     .forEach((x) => x.classList.toggle("active", x.dataset.page === key));
   document.querySelector(".sidebar").classList.remove("open");
+  updateNotificationIndicator();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 function materialAttachmentMarkup(asset) {
@@ -722,13 +728,13 @@ function openTaskSubmissions(taskId) {
     : submissions.map((submission) => ({ ...submission, submission }));
   const rows = entries.map((entry) => {
     const submission = entry.submission;
-    const late = submission?.submittedAt && new Date(submission.submittedAt) > new Date(task.due);
+    const late = Boolean(entry.late ?? (submission?.submittedAt && Number.isFinite(new Date(task.due).getTime()) && new Date(submission.submittedAt) > new Date(task.due)));
     const status = !submission ? "Belum mengumpulkan" : late ? "Terlambat" : entry.needsReview ? "Perlu dinilai" : "Sudah dinilai";
-    return `<article class="submission-card submission-list-row"><div class="submission-student"><span class="top-avatar">${escapeHtml(entry.name.slice(0, 1))}</span><div><b>${escapeHtml(entry.name)}</b><small>${escapeHtml(entry.className || "Siswa")} · ${escapeHtml(status)}${submission?.score !== null && submission?.score !== undefined ? ` · ${Number(submission.score)}/100` : ""}</small></div>${submission ? `<button type="button" class="outline-button" data-view-answer="${escapeHtml(task.id)}" data-student-username="${escapeHtml(entry.username)}">Lihat</button>` : ""}</div></article>`;
+    return `<article class="submission-card submission-list-row" data-submitted="${submission ? "true" : "false"}" data-late="${late ? "true" : "false"}" data-needs-review="${entry.needsReview ? "true" : "false"}"><div class="submission-student"><span class="top-avatar">${escapeHtml(entry.name.slice(0, 1))}</span><div><b>${escapeHtml(entry.name)}</b><small>${escapeHtml(entry.className || "Siswa")} · ${escapeHtml(status)}${submission?.score !== null && submission?.score !== undefined ? ` · ${Number(submission.score)}/100` : ""}</small></div>${submission ? `<button type="button" class="outline-button" data-view-answer="${escapeHtml(task.id)}" data-student-username="${escapeHtml(entry.username)}">Lihat</button>` : ""}</div></article>`;
   }).join("");
   const stats = task.submissionStats || { submitted: submissions.length, total: entries.length, pending: 0, late: 0, needsReview: 0 };
   document.getElementById("dialogContent").innerHTML =
-    `<div class="eyebrow">PENGUMPULAN ${task.type === "quiz" ? "KUIS" : "TUGAS"}</div><h2>${escapeHtml(task.title)}</h2><div class="submission-summary"><span>${stats.submitted}/${stats.total} terkumpul</span><span>${stats.pending} belum</span><span>${stats.late} terlambat</span><span>${stats.needsReview} perlu dinilai</span></div>${rows || '<p class="empty-note">Belum ada siswa di kelas tugas ini.</p>'}`;
+    `<div class="eyebrow">PENGUMPULAN ${task.type === "quiz" ? "KUIS" : "TUGAS"}</div><h2>${escapeHtml(task.title)}</h2><div class="submission-summary"><span>${stats.submitted}/${stats.total} terkumpul</span><span>${stats.pending} belum</span><span>${stats.late} terlambat</span><span>${stats.needsReview} perlu dinilai</span></div><label class="submission-filter">Status pengumpulan<select class="editor-input" data-submission-filter><option value="all">Semua siswa</option><option value="pending">Belum mengumpulkan</option><option value="submitted">Sudah mengumpulkan</option><option value="late">Terlambat</option><option value="review">Perlu dinilai</option></select></label>${rows || '<p class="empty-note">Belum ada siswa di kelas tugas ini.</p>'}<p class="empty-note submission-filter-empty" hidden>Tidak ada siswa dengan status tersebut.</p>`;
   document.getElementById("lessonDialog").showModal();
 }
 function openSubmissionAnswer(taskId, username) {
@@ -2001,6 +2007,24 @@ document.addEventListener("click", (e) => {
   const button = e.target.closest("[data-view-submissions]");
   if (button) openTaskSubmissions(button.dataset.viewSubmissions);
 });
+document.addEventListener("change", (event) => {
+  const filter = event.target.closest("[data-submission-filter]");
+  if (!filter) return;
+  const status = filter.value;
+  let visible = 0;
+  document.querySelectorAll(".submission-list-row").forEach((row) => {
+    const matches =
+      status === "all" ||
+      (status === "pending" && row.dataset.submitted === "false") ||
+      (status === "submitted" && row.dataset.submitted === "true") ||
+      (status === "late" && row.dataset.late === "true") ||
+      (status === "review" && row.dataset.needsReview === "true");
+    row.hidden = !matches;
+    if (matches) visible++;
+  });
+  const empty = document.querySelector(".submission-filter-empty");
+  if (empty) empty.hidden = visible > 0;
+});
 document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-save-submission-grade]");
   if (!button) return;
@@ -2038,13 +2062,6 @@ document.addEventListener("click", async (event) => {
     const listButton = [...document.querySelectorAll("[data-view-submissions]")].find((item) => item.dataset.viewSubmissions === taskId);
     if (listButton && task.submissionStats) {
       listButton.textContent = `Pengumpulan (${task.submissionStats.submitted}/${task.submissionStats.total})${task.submissionStats.needsReview ? ` · ${task.submissionStats.needsReview} perlu dinilai` : ""}`;
-      const filter = document.getElementById("assignmentStatusFilter")?.value;
-      if (filter === "review" && task.submissionStats.needsReview === 0) {
-        listButton.closest(".assignment").hidden = true;
-        const empty = document.querySelector(".assignment-filter-empty");
-        if (empty)
-          empty.hidden = [...document.querySelectorAll(".assignment[data-classid]")].some((row) => !row.hidden);
-      }
     }
     openSubmissionAnswer(taskId, username);
     notify("Nilai dan umpan balik berhasil disimpan.");
@@ -2054,18 +2071,12 @@ document.addEventListener("click", async (event) => {
   }
 });
 document.addEventListener("change", (event) => {
-  if (!["assignmentClassFilter", "assignmentStatusFilter"].includes(event.target.id)) return;
+  if (event.target.id !== "assignmentClassFilter") return;
   const classId = document.getElementById("assignmentClassFilter")?.value || "all";
-  const status = document.getElementById("assignmentStatusFilter")?.value || "all";
   let visible = 0;
   document.querySelectorAll(".assignment[data-classid]").forEach((row) => {
     const matchesClass = classId === "all" || row.dataset.classid === classId;
-    const matchesStatus =
-      status === "all" ||
-      (status === "pending" && Number(row.dataset.pending) > 0) ||
-      (status === "review" && Number(row.dataset.review) > 0) ||
-      (status === "late" && Number(row.dataset.late) > 0);
-    row.hidden = !(matchesClass && matchesStatus);
+    row.hidden = !matchesClass;
     if (!row.hidden) visible++;
   });
   const empty = document.querySelector(".assignment-filter-empty");
@@ -2398,10 +2409,47 @@ function notificationItems() {
     );
   return list.slice(0, 10);
 }
+function notificationIdentity(item) {
+  return JSON.stringify([item.page, item.title, item.body]);
+}
+function readSeenNotifications() {
+  const seen = new Set(notificationSeenThisSession);
+  try {
+    const stored = JSON.parse(localStorage.getItem(notificationSeenStorageKey) || "[]");
+    if (Array.isArray(stored))
+      stored.forEach((key) => {
+        if (typeof key === "string") seen.add(key);
+      });
+  } catch (error) {
+    console.warn("Status notifikasi tersimpan tidak dapat dibaca.", error);
+  }
+  return seen;
+}
+function updateNotificationIndicator() {
+  const indicator = document.querySelector("#notifications i");
+  if (!indicator) return;
+  const seen = readSeenNotifications();
+  indicator.hidden = !notificationItems().some((item) => !seen.has(notificationIdentity(item)));
+}
+function markNotificationsRead(items) {
+  const seen = readSeenNotifications();
+  items.forEach((item) => seen.add(notificationIdentity(item)));
+  notificationSeenThisSession = seen;
+  try {
+    localStorage.setItem(
+      notificationSeenStorageKey,
+      JSON.stringify([...seen].slice(-100)),
+    );
+  } catch (error) {
+    console.warn("Status notifikasi tidak dapat disimpan.", error);
+  }
+  updateNotificationIndicator();
+}
 function openNotifications() {
   const items = notificationItems();
   document.getElementById("dialogContent").innerHTML =
     `<div class="eyebrow">PEMBARUAN TERBARU</div><h2>Notifikasi</h2><p>Informasi penting tentang kegiatan belajarmu.</p><div class="notification-list">${items.map((item) => `<button type="button" class="notification-item" data-page="${item.page}"><span class="notification-icon">${item.icon}</span><span><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.body)}</small></span></button>`).join("") || '<p class="empty-note">Belum ada notifikasi baru.</p>'}</div>`;
+  markNotificationsRead(items);
   document.getElementById("lessonDialog").showModal();
 }
 function teacherInsights() {
